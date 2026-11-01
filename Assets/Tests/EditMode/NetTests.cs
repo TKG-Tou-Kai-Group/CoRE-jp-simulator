@@ -6,6 +6,48 @@ using NUnit.Framework;
 
 namespace CoreSim.Tests
 {
+    public class NetAddressTests
+    {
+        [Test]
+        public void SplitsHostAndPort()
+        {
+            string host = "pro1.ssnetwork.io:53786"; int port = 7777;
+            NetAddress.SplitHostPort(ref host, ref port);
+            Assert.AreEqual("pro1.ssnetwork.io", host);
+            Assert.AreEqual(53786, port);
+
+            host = " 192.168.1.10 "; port = 7777;
+            NetAddress.SplitHostPort(ref host, ref port);
+            Assert.AreEqual("192.168.1.10", host);
+            Assert.AreEqual(7777, port);
+
+            host = "[fe80::1]:9000"; port = 7777;
+            NetAddress.SplitHostPort(ref host, ref port);
+            Assert.AreEqual("fe80::1", host);
+            Assert.AreEqual(9000, port);
+
+            host = "fe80::1"; port = 7777;
+            NetAddress.SplitHostPort(ref host, ref port);
+            Assert.AreEqual("fe80::1", host);
+            Assert.AreEqual(7777, port);
+
+            host = "example.com:notaport"; port = 7777;
+            NetAddress.SplitHostPort(ref host, ref port);
+            Assert.AreEqual("example.com:notaport", host);
+            Assert.AreEqual(7777, port);
+        }
+
+        [Test]
+        public void ResolvesLiteralAndLoopback()
+        {
+            Assert.AreEqual(IPAddress.Parse("10.0.0.5"), NetAddress.ResolveHost("10.0.0.5"));
+            IPAddress lo = NetAddress.ResolveHost("localhost");
+            Assert.IsNotNull(lo);
+            Assert.IsTrue(IPAddress.IsLoopback(lo));
+            Assert.IsNull(NetAddress.ResolveHost(""));
+        }
+    }
+
     public class NetCodecTests
     {
         [Test]

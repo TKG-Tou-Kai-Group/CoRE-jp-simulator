@@ -227,18 +227,11 @@ namespace CoreSim
         public void JoinGame(string address)
         {
             CloseNetwork(keepMenu: true);
-            if (!IPAddress.TryParse(address, out IPAddress ip))
-            {
-                try
-                {
-                    IPAddress[] addrs = Dns.GetHostAddresses(address);
-                    ip = addrs.Length > 0 ? addrs[0] : null;
-                }
-                catch (System.Exception)
-                {
-                    ip = null;
-                }
-            }
+            // "host:port" 形式 (Secure Share Net の公開アドレスなど) ならポートはそちらを優先する
+            int port = Settings.NetPort;
+            string host = (address ?? string.Empty).Trim();
+            NetAddress.SplitHostPort(ref host, ref port);
+            IPAddress ip = NetAddress.ResolveHost(host);
             if (ip == null)
             {
                 m_NetMenu.ShowError("IP アドレスが読めません");
@@ -246,7 +239,7 @@ namespace CoreSim
             }
             try
             {
-                var server = new IPEndPoint(ip, Settings.NetPort);
+                var server = new IPEndPoint(ip, port);
                 INetTransport transport;
                 NetEndpoint endpoint;
                 if (Settings.NetUseTcp)

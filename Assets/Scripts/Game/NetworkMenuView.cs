@@ -47,7 +47,7 @@ namespace CoreSim
             RectTransform note = UiKit.Rect(m_Setup, "Note", new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -160f), new Vector2(1500f, 60f));
             UiKit.Label(note, "Text",
                 "通信はこのポート番号 1 つだけで行います。同じ LAN なら下の一覧に部屋が出ます。\n" +
-                "閉域網 (Secure Share Net など) ではホストの IP アドレスを入力してください。UDP が通らなければ TCP に切り替えます。",
+                "閉域網ではホストの IP アドレスを入力してください。Secure Share Net なら公開アドレス (例: pro1.ssnetwork.io:53786) をそのまま入力し、通信方式はツール側の設定 (TCP 推奨) に合わせます。",
                 22, new Color(0.85f, 0.88f, 0.95f));
 
             // 左: 共通設定とホスト
@@ -72,8 +72,8 @@ namespace CoreSim
             UiKit.Image(right, "bg", new Color(0f, 0f, 0f, 0.55f), Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
             var rightLayout = right.gameObject.AddComponent<VerticalLayoutGroup>();
             Layout(rightLayout);
-            UiKit.Label(Row(right, 40f), "r1", "ホストの IP アドレス", 24, Color.white, TextAnchor.MiddleLeft);
-            m_AddressField = UiKit.InputField(right, "Address", new Vector2(800f, 56f), m_Settings.LastHostAddress, "例: 192.168.1.10");
+            UiKit.Label(Row(right, 40f), "r1", "ホストの IP アドレス (アドレス:ポート も可)", 24, Color.white, TextAnchor.MiddleLeft);
+            m_AddressField = UiKit.InputField(right, "Address", new Vector2(800f, 56f), m_Settings.LastHostAddress, "例: 192.168.1.10 / pro1.ssnetwork.io:53786");
             UiKit.Button(right, "参加する", new Vector2(800f, 76f), () => { ReadFields(); m_Director.JoinGame(m_Settings.LastHostAddress); },
                          new Color(0.2f, 0.5f, 0.85f, 0.95f), 32);
             UiKit.Label(Row(right, 40f), "r2", "同じ LAN 内の部屋 (自動検索)", 24, Color.white, TextAnchor.MiddleLeft);
@@ -213,7 +213,7 @@ namespace CoreSim
             m_CpuButton.interactable = isHost;
             m_SpeedButton.interactable = isHost;
             string kind = m_Settings.NetUseTcp ? "TCP" : "UDP";
-            m_LobbyTitle.text = isHost ? $"ロビー (ホスト: {kind} ポート {m_Settings.NetPort})" : $"ロビー ({m_Settings.LastHostAddress}:{m_Settings.NetPort} {kind})";
+            m_LobbyTitle.text = isHost ? $"ロビー (ホスト: {kind} ポート {m_Settings.NetPort})" : $"ロビー ({(m_Settings.LastHostAddress.Contains(":") ? m_Settings.LastHostAddress : m_Settings.LastHostAddress + ":" + m_Settings.NetPort)} {kind})";
         }
 
         public void RefreshLobby(LobbyMessage lobby, string status)
