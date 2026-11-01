@@ -1,0 +1,222 @@
+# 設計
+
+## 目的
+
+CoRE を知らない人が、実行ファイル 1 つで 2026 年フィールドの撃ち合いを体験できるようにする。
+ROS 2 版 (CoRE-jp-Unity-ROS2-packages) が「研究・開発者向けの忠実なシミュレータ」だったのに対し、
+こちらは「競技を知ってもらうためのゲーム」であり、忠実さより起動の手軽さと動作の軽さを優先する。
+
+- 主ターゲット: Windows PC。副ターゲット: Android タブレット (展示・デモ)
+- 入力: キーボード / ゲームパッド / タッチ。ネットワークも外部プロセスも使わない
+- 1 つの空シーン + コードによる組み立て。Prefab もシーン編集も不要にして、差分レビューを C# だけで済ませる
+
+## 全体像
+
+```
+GameBootstrap (RuntimeInitializeOnLoad)
+  └ GameDirector            メニュー → 試合 → 結果の進行。機体の生成、勝敗、オーバーレイ
+       ├ ArenaBuilder       フィールド (STL メッシュ 16 枚 + 壁 + 地面 + 光)
+       ├ RobotFactory       機体をプリミティブから組み立てる (URDF と同じ寸法)
+       │    └ RobotAgent    ICommandSource → ChassisDrive / Shooter、HealthModel、装甲板
+       │         ├ ChassisDrive   車体速度指令を力で追従 (BodyTwistDrive の移植)
+       │         ├ Shooter        射出口から Disc を初速付きで生成
+       │         └ ArmorPlate x4  Disc の命中 → HP 減少
+       ├ PlayerView (人数分)  一人称カメラ・ミニマップ・HudView
+       ├ MenuView / NetworkMenuView / Overlay  タイトル、設定、ロビー、一時停止、結果
+       └ HostSession / ClientSession (ネット対戦時)
+CoreSim.Rules (Unity 非依存)
+  ├ MatchState   カウントダウン → 試合 → 結果。勝敗判定
+  └ HealthModel  HP と被弾数
+CoreSim.Net (Unity 非依存)
+  ├ NetProtocol  メッセージ定義とバイト列の符号化
+  ├ NetTransports  UdpTransport / TcpHostTransport / TcpClientTransport (1 ポート)
+  ├ HostSession / ClientSession  参加管理、操作の受け取り、スナップショット配信
+  └ LanScanner   同じポートへのブロードキャストで部屋を探す
+```
+
+`ICommandSource` が操縦指令の唯一の入口で、`PlayerCommandSource` (人)、`BotCommandSource` (CPU)、
+`RemoteCommandSource` (ネット越しの人) が実装する。将来 ROS 2 を繋ぐ場合もここに
+`RosCommandSource` を足すだけで、機体側は変えずに済む。
+
+## 大会ルール (CoRE-1 V27.1.3)
+
+`CoreSim.Rules.TournamentRound` がルールブック第 5・6・8・9 章のうちアタッカーに関わる判定
+(HP、撃破と復活、ヘッドアタッカー、陣地、VP/RP、スキル、ピットイン、反則、ラウンドの終わり) を
+Unity に依存しない形で持つ。`TournamentController` が機体の位置からゾーンの出入りとバンカーを拾い、
+HP・停止・無敵を機体へ写す。`TournamentSeries` はラウンドの先取数 (BO1/3/5) を数えるだけで、
+予選や決勝トーナメントの進行は再現しない。対応表と再現できていない点は
+[TOURNAMENT_RULES.md](TOURNAMENT_RULES.md) にある。
+
+2027 フィールドは公式ルールナビに埋め込まれた簡略 3D モデルを `tools/import_field2027.py` で
+STL と manifest (ダメージパネル・バンカー上面・補給エリア・進入禁止ゾーン・開始位置) に変換して使う。
+ネット対戦ではスナップショットに同盟の状態 (VP/RP/陣地/スキルの残り時間) と機体の残弾・復活・停止を
+足し (プロトコル版 2)、クライアントは `Skill` メッセージでスキルの発動をホストへ頼む。
+
+## 視点
+
+CoRE の大会ルールに合わせ、操縦者が見られるのは機体に付いたカメラの映像だけにしている。
+カメラは ROS 2 版の `camera_link` と同じ位置 (base_link の前 0.45 m、高さ 0.28 m)、水平画角 80 度。
+俯瞰は ROS 2 版の `top_view_camera_link` (機体の 10 m 上) に相当するミニマップで、V キーで出し入れする。
+三人称視点は v0.1 にあったが、ルールと合わないので外した。
+
+## ネット対戦
+
+### 方式
+
+ホスト権威型。ホストがローカル対戦と同じ `GameDirector` の進行をそのまま回し、
+参加者の機体には `RemoteCommandSource` を挿して操作を受け取る。30 Hz で全機体の
+位置・姿勢・HP とディスクの位置・速度を `SnapshotMessage` にして全員へ送る。
+参加者側は物理を回さず、機体を kinematic にしてスナップショットへ滑らかに寄せる
+(`RobotAgent.MakeRemote`)。ディスクは `GhostDisc` として速度で外挿しながら表示する。
+
+参加者の自分の機体も同じ扱い (先読みなし) なので、操作は往復遅延ぶん遅れて効く。
+LAN や閉域網の数十 ms では気にならない範囲と判断した。遅延補償を入れるなら
+`RobotAgent` のクライアント側予測を足す形になる。
+
+### 1 ポートで済ませる理由
+
+会場の閉域網 (Secure Share Net など) では開けられるポートが限られると聞いているので、
+参加・ロビー・操作・状態配信・部屋探しの全部を同じポート番号で行う。
+既定は UDP 7777。UDP が通らないときのために、同じプロトコルを 2 バイト長接頭辞で
+フレーム化した TCP も用意した (`TcpHostTransport` / `TcpClientTransport`)。
+TCP 運用時も部屋探しの応答だけは同じ番号の UDP で受ける (ブロードキャストは UDP しかないため)。
+
+### メッセージ
+
+| 種別 | 向き | 頻度 | 中身 |
+|---|---|---|---|
+| Hello / Welcome / Reject | c→h / h→c | 参加時 (0.5 秒ごとに再送) | 名前、スロット番号、拒否理由 |
+| Lobby | h→c | 0.5 秒ごと | 形式、試合時間、速さ、参加者一覧 (ホスト / 人 / CPU) |
+| Input | c→h | 30 Hz | 並進・旋回・発射・ターボ |
+| Snapshot | h→c | 30 Hz | 試合フェーズ、残り時間、勝敗、各機体の位置姿勢・HP・KO・発射数・被弾数、ディスク |
+| Ping / Pong | c→h / h→c | 1 秒ごと | RTT 表示と生存確認 |
+| Discover / Announce | c→broadcast / h→c | 1 秒ごと | 部屋探し |
+| Bye | 双方向 | 退出時 | - |
+
+どのメッセージも「最新の状態」を表すので、再送や順序保証は持たない。落ちた
+パケットは次で追いつく。効果音も発射数・被弾数の累計の差分で鳴らすので取りこぼさない。
+参加者は 6 秒応答が無いと外れ、ホストが消えると参加者側に切断表示が出る。
+
+### 検証
+
+`Assets/Tests/EditMode/NetTests.cs` が、符号化の往復、UDP と TCP それぞれでの
+参加 → ロビー → 操作 → スナップショット → 試合中の参加拒否 → 切断、LAN 検索を
+ループバックで実際のソケットを使って確認する。`tools/check_compile.sh` で dotnet 上でも走る。
+
+## ROS 2 版との対応
+
+| 役割 | ROS 2 版 | ゲーム版 |
+|---|---|---|
+| ステージ | `core_stage.world` (SDF、2026 フィールド) + STL 16 枚を実行時に読む | CoRE-1 2027 フィールド (ルールナビの簡略 3D モデル) を `tools/import_field2027.py` で STL 化し、`StlImporter` がインポート時に Mesh 化。2026 フィールドは使わない |
+| 機体 | `sample_robot_description` の URDF (29 リンク) を spawn | `RobotFactory` がプリミティブで同じ寸法に組む。Rigidbody 1 個 |
+| 走行 | `body_twist_drive` (ArticulationBody へ加力) + teleop_twist_joy | `ChassisDrive` (Rigidbody へ `ForceMode.Acceleration` で加力)。上限値は同じ |
+| 射出 | 射出輪 2 枚でディスクを物理的に挟んで加速 (初速 20 m/s)、`flying_disc_feeder` が 1 枚ずつ供給 | `Shooter` が射出口から初速 15 m/s (ルールブック 14.3 の上限) を直接与える。供給は不要 |
+| ディスク | 場に最大 24 枚残す | 何かに触れた時点で消える |
+| 被弾 | `contact` センサの `contact_count` の差分を `hp_manager` が数える | `ArmorPlate.OnCollisionEnter` で直接数える |
+| 試合進行 | `game_manager` (ROS トピックで countdown / game_status) | `MatchState` (純 C#) |
+| 操縦 | ブラウザ (`tools/control.html`) → rosbridge → Joy | Input System を直接読む。キー割り当ては同じ |
+| 映像 | カメラセンサ → JPEG → H.264 → WebSocket → ブラウザ | 画面に直接描く。一人称視点は同じ取り付け位置・水平 80 度 |
+| HUD | `core_jp_camera_publisher` が映像に焼き込む | uGUI (`HudView`)。要素は同じ (レティクル、残り時間、全機 HP、俯瞰) |
+| 俯瞰カメラ | 機体の 10 m 上の `top_view_camera_link` | ミニマップ用のオルソカメラ + RenderTexture |
+
+## 意図的に変えたこと
+
+### 0. 見た目だけの部品は当たり判定を持たずに作る
+
+`GameObject.CreatePrimitive` + `Destroy(collider)` は使わない。Destroy はフレーム末まで
+遅延するので、生成したフレームの物理ステップではコライダがまだ生きている。v0.1 のディスクは
+これで自機のシュータに当たり、出た瞬間に消えていた。`Visuals.Create` が組み込みメッシュから
+MeshFilter / MeshRenderer だけの物体を作る。
+
+### 1. 射出を物理接触から初速の直接付与に変えた
+
+ROS 2 版の射出輪は、方位が 1 回あたり 11 度前後散り (四分位 6.8 度)、寸法でも物理レートでも
+縮まないことが README に実測付きで記録されている。しかも初速は `physics_hz` に敏感で、
+200 Hz では 16.4〜19.6 m/s と振れる。ゲームでは「狙ったところへ飛ぶ」ことが遊びやすさに
+直結するので、射出口から速度を与える方式にし、ばらつきは乱数 (既定 ±2 度) で付ける。
+実機相当の ±6 度にしたければ `Tuning.DispersionDeg` を変える。
+
+### 2. ディスクを使い捨てにした
+
+場に残るディスクは静止していてもソルバのコストがゼロではなく、ROS 2 版は 2 台 + 40 枚で
+実時間を割った経緯がある。タブレットで動かすには同時に存在する剛体を最小にしたい。
+何かに触れたら (装甲板なら被弾を記録してから) 消す。跳ね返りも無い。
+
+### 3. ArticulationBody ではなく Rigidbody 1 個にした
+
+関節を動かす必要が無い (射出輪も装填機構も見た目だけ) ので、機体は Rigidbody 1 個に
+コライダを束ねた剛体にする。`BodyTwistDrive` が自前でやっていた「連結全体の質量と
+ヨー慣性の集計」「根リンクと重心のずれによる余計なトルクの打ち消し」は、
+Rigidbody + `ForceMode.Acceleration` なら物理エンジン側で済む。
+接地は ROS 2 版と同じく摩擦 0 の球 4 個で、床の摩擦には頼らない。
+
+### 4. 速度プリセット「ゲーム」を既定にした
+
+実機相当 (通常 0.5 m/s) は 27.6 m のフィールドでは間延びする。既定を 2 倍にし、
+「リアル」をメニューで選べるようにした。加速度は 4 倍 (0.4 → 1.6 m/s²)。
+これは変えても良い判断なので、実機の感覚を優先するなら `GameSettings.Speed` の既定を
+`Real` に戻す。
+
+### 5. ステージのメッシュを間引いた
+
+元の STL は 168 万三角形 (ボルト類を落とした後の値)。`tools/decimate_stl.py` の頂点
+クラスタリングで PC 用 (格子 5 mm、22 万三角形) とモバイル用 (10 mm、12 万三角形) を作った。
+細かい部材 (`core_stage_00` / `01`) は面積の 3 割ほどを失うが、背景としては気にならない。
+当たり判定は常にモバイル用で、走行に効く床面と台 (`core_stage_11` / `12` / `14`) はもともと
+三角形数が少ないので間引いていない (2 万三角形未満はそのままコピー)。
+
+### 6. フォントは OS のものを使う
+
+日本語フォントを同梱すると数十 MB 増える。`Font.CreateDynamicFontFromOSFont` で
+Windows (Yu Gothic / Meiryo)、Android (Noto Sans CJK)、Linux (Noto / Droid) を探し、
+無ければ Unity 組み込みのフォントに落ちる (その場合は日本語が豆腐になる)。
+
+## 座標系
+
+ROS (x 前, y 左, z 上, 右手系) の値を `Tuning.RosToUnity` = (-y, z, x) で Unity に移す。
+`StlImporter` も同じ変換を頂点ごとに行い、鏡像になるぶん三角形の巻き順を反転する。
+ヨーは ROS の θ [rad] (z 軸まわり反時計) が Unity の Y 回転 -θ [deg]。
+機体の開始位置は `sample_robot_N_spawn_for_core.launch.py` の 8 台ぶんをそのまま使う。
+
+## 物理の設定
+
+- `Fixed Timestep` 0.01 (100 Hz)。ROS 2 版の 200 Hz は射出輪の噛み込みのための値で、
+  射出を初速付与にしたこのゲームでは不要
+- ディスクは `ContinuousDynamic`、装甲板のコライダは厚さ 3 cm (見た目は 1 cm)。
+  15 m/s のディスクは 1 ステップで 0.15 m 進むので、薄い板だとすり抜ける
+- Disc 同士、ミニマップのマーカー同士は衝突しない (`GameBootstrap` でレイヤ設定)
+- 接地球は摩擦 0 なので、斜面では `ChassisDrive` が接地面の法線から重力の斜面成分を求めて打ち消す
+  (車輪の摩擦の代わり)。これが無いと加速度上限 (0.4〜1.6 m/s²) では 2027 フィールドのスロープを登れない
+- 2027 フィールドは地面のプレーンとの Z ファイトを避けるため全体を 5 mm、床の線をさらに 2 mm 浮かせている
+- CPU の経路は実行時に焼く NavMesh (`NavigationBuilder`、段差 6 cm・勾配 25 度・半径 0.45 m) で求める。
+  方向だけで進むと高台のスロープを登った先の谷に落ちて動けなくなった。進入禁止ゾーンは歩けない領域にする
+
+## プラットフォーム
+
+| | Windows | Android |
+|---|---|---|
+| ステージ | pc (22 万三角形)、ソフトシャドウ | low (12 万三角形)、影なし |
+| 入力 | キーボード、ゲームパッド | 画面上の仮想パッド (Input System OnScreen)。ゲームパッドも可 |
+| ミニマップ | 256 px、毎フレーム | 192 px、3 フレームに 1 回 |
+| 画面 | ウィンドウ 1280x720 (変更可) | 横向き固定、全画面 |
+
+Android の判定は `Application.isMobilePlatform`。ビルドには Android Build Support
+(IL2CPP、ARM64) が要る。
+
+## 検証の状態
+
+- `tools/check_compile.sh`: Unity 同梱 Roslyn で Rules / Game / Editor / Tests の 4 アセンブリが
+  コンパイルできることを確認済み
+- `CoreSim.Rules` と `CoreSim.Net` の NUnit テスト 16 件を dotnet で実行し通過
+- v0.1 はユーザが Unity 上で起動し、ディスクが出ない不具合を報告 → v0.2 で修正
+- **ネット対戦を Unity 上で 2 台繋いで確認するのはこれから**
+
+## これからの候補
+
+1. Unity で開いて Play し、射出・HUD・CPU の手触りを調整する。ネット対戦は同じ PC で
+   2 つ起動 (ホスト + 127.0.0.1 へ参加) すれば確認できる
+2. `RosCommandSource`: `/<robot>/cmd_vel` と射撃トピックを ROS-TCP-Connector で受ける実装。
+   ROS 2 版のユーザが同じ exe で自分のプログラムを試せるようになる
+3. 機体の見た目を Isaac 版の USD などから持ち込む (いまはプリミティブ)
+4. ネット対戦の遅延補償 (自機の先読み)。インターネット越しで遊ぶなら要る
+5. 実機の射出のばらつき (±6 度) や、装甲板ごとのダメージ差など、ルールの年次更新への追従

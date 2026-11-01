@@ -1,0 +1,201 @@
+# CoRE-jp-simulator
+
+CoRE (Championship of Robotics Engineers) の 2026 年フィールドで撃ち合いを体験できる、
+**単体で動くゲーム版シミュレータ**です。ROS 2 も Docker も要りません。
+実行ファイル 1 つ (Windows の exe、または Android の apk) を起動して、キーボード・ゲームパッド・
+タッチ操作で遊べます。
+
+[Unity_ROS2_Robot_Simulator](https://github.com/REACT-ROBOT/Unity_ROS2_Robot_Simulator) 上で
+CoRE の競技環境を動かす [CoRE-jp-Unity-ROS2-packages](https://github.com/TKG-Tou-Kai-Group/CoRE-jp-Unity-ROS2-packages)
+から、フィールド形状・機体寸法・走行と射出の特性・HP と試合進行のルールを引き継ぎ、
+ROS 2 に依存していた部分 (ブラウザ操縦・rosbridge・映像配信・ros2_control) を
+ゲーム内の入力と HUD に置き換えています。
+
+## 誰のためのものか
+
+**CoRE をまだよく知らない人**が主な対象です。既存の参加チームが ROS 2 版のシミュレータを
+使わなかった経緯を踏まえ、「ダウンロードして 1 分で撃ち合いが始められる」ことを優先しています。
+
+- 主ターゲット: Windows PC (キーボード、またはゲームパッド)
+- 副ターゲット: Android タブレット (画面上の仮想パッド)。展示・デモ向け
+- 負荷を下げるため、ディスクは何かに触れた時点 (着地・場外・命中) で消えます
+
+## 遊び方
+
+| モード | 内容 |
+|---|---|
+| ひとりで対戦 | 個人戦。CPU 1〜3 台と撃ち合う |
+| チーム戦 | 2 vs 2。味方は CPU。奇数番 = Blue、偶数番 = Red |
+| ふたりで対戦 | 画面分割のローカル対戦 (PC + ゲームパッド 2 台) |
+| 練習 | 時間無制限。撃ち返してこない的が 1 台 |
+| ネット対戦 | 最大 8 人。同じ LAN、または閉域網で 1 ポートが通れば遊べる (後述) |
+
+ルールは 2 種類から選べます。
+
+| ルール | 内容 |
+|---|---|
+| かんたん | ROS 2 版と同じ特別ルール (自動復活が無い代わりに HP 200)。命中 10、時間切れで HP が多い側の勝ち。1 vs 1 や 2 vs 2 向き |
+| 大会ルール | CoRE-1 ルールブック V27.1.3 (2027 シーズン) 準拠、アタッカーのみ。詳細は [docs/TOURNAMENT_RULES.md](docs/TOURNAMENT_RULES.md) |
+
+フィールドはどちらのルールでも CoRE-1 の 2027 フィールド (24m × 15m) です。細かい設定 (CPU の数、試合時間、
+台数、試合形式、弾倉、速さ、音、タッチパッド) はタイトルの「設定」画面にまとめてあります。
+
+大会ルールの要点: 赤同盟 vs 青同盟、1 ラウンド 7 分で VP 500 に達したら終了。撃破 +10VP、
+陣地の撃破 +100VP (開始 3 分後から有効)、ヘッドアタッカー (HP 300、毎秒 5 回復) の減った HP が VP に。
+アタッカーの HP は 60、ディスクは同盟で 400 枚、弾倉 30 枚。RP でスキル (ブースト・バリア・ヒーリング・
+リジェネ・ピットイン・サプライ) を発動し、残弾が尽きたらピットイン (20 RP) を発動して補給エリアへ。
+予選 (1 ラウンド) / 準決勝 (2 本先取) / 決勝 (3 本先取) を選べます。
+
+視点は大会と同じく **機体に付いたカメラ (一人称) だけ**です。俯瞰は左下の地図 (V キーで表示切替) で確認します。
+
+ルールは ROS 2 版の `game_manager` / `hp_manager` と同じです。
+
+- 各機体は 4 枚の装甲板を持ち、ディスクが当たるたびに HP が 10 減る (初期 200)
+- 試合時間 (既定 120 秒) が尽きたとき、残り HP が多い側の勝ち。同点は引き分け
+- チーム戦は HP の合計で決める。HP 0 の機体は動けなくなる (KO)
+- 片側が全滅したら、その時点で試合終了
+
+### 操作
+
+| 操作 | キーボード | ゲームパッド | タブレット |
+|---|---|---|---|
+| 移動 (前後左右) | 矢印 / W S | 左スティック | 左の仮想スティック |
+| 旋回 | A / D | 右スティック | 右の仮想スティック |
+| 発射 | Space | RB / RT / A | 「発射」 |
+| ターボ | Shift | LB / LT | 「ターボ」 |
+| 地図 (俯瞰) の表示切替 | V | Y | 「マップ」 |
+| スキル (大会ルール) | 1〜9 | 十字キー左右で選び X で発動 | 画面下のボタン |
+| 一時停止 / メニュー | Esc | Start | - |
+
+キー割り当ては ROS 2 版の `tools/control.html` と同じです (矢印で移動、A/D で旋回)。
+
+### 機体の速さ
+
+メニューで 2 つから選べます。既定は「ゲーム」です。
+
+| プリセット | 通常 | ターボ | 加速度 |
+|---|---|---|---|
+| リアル (実機相当) | 0.5 m/s / 0.75 rad/s | 1.0 m/s / 1.5 rad/s | 0.4 m/s² / 0.8 rad/s² |
+| ゲーム | 1.0 m/s / 1.5 rad/s | 2.0 m/s / 3.0 rad/s | 1.6 m/s² / 3.2 rad/s² |
+
+「リアル」は ROS 2 版の `body_twist_drive` と teleop の設定そのままです。27.6 m のフィールドを
+0.5 m/s で渡ると 55 秒かかり、初めて触る人には間延びするので、ゲームでは 2 倍を既定にしました。
+実機の間合いを体験させたいときは「リアル」に切り替えてください。
+
+## ネット対戦
+
+ホスト 1 人が部屋を作り、ほかの人が参加します。物理と試合進行はホストだけが回し、
+参加者は操作を送って状態を受け取る方式 (ホスト権威型) です。
+
+- **通信はポート番号 1 つだけ** (既定 7777)。UDP が基本で、UDP が通らない網では TCP に切り替えられます
+  (ホストと参加者で同じ方式・同じ番号にすること)
+- 同じ LAN なら「同じ LAN 内の部屋」に自動で出ます (同じポートへの UDP ブロードキャスト)
+- ルータや閉域網 (Secure Share Net など) を挟むときはブロードキャストが届かないので、
+  ホストの IP アドレスを入力して参加します。網側で **そのポート番号の UDP (または TCP) を
+  ホスト宛てに通す**設定が要ります。ホストから参加者への返信は同じ接続/同じアドレス宛てなので、
+  参加者側に追加の開放は要りません
+- 帯域は 1 参加者あたり約 25 KB/s (30 Hz のスナップショット)。操作は 30 Hz で送ります
+- 応答 (RTT) はロビーに表示されます。LAN で数 ms、閉域網で数十 ms なら問題なく遊べます。
+  参加者の操作は往復遅延ぶん遅れて機体に反映されます (先読み補正はしていません)
+
+- 会場の共有ネットワークでは**合言葉**を付けてください (ホストと参加者で同じ文字列)。参加時に発行する
+  トークンで操作の注入を防ぎますが、通信は暗号化していません。確認した点と残る前提は
+  [docs/SECURITY.md](docs/SECURITY.md) にまとめてあります
+
+手順: タイトルの「ネット対戦」→ 名前・ポート・方式・合言葉を決めて「部屋を作る」。参加者は一覧から選ぶか
+IP を入力して「参加する」。ホストはロビーで形式 (個人戦/チーム戦)・時間・CPU の追加を決めて「試合開始」。
+機体の番号は参加順 (ホストが 1 番) で、チーム戦は奇数番が Blue、偶数番が Red です。
+
+## ビルド
+
+### 必要なもの
+
+- Unity **6000.3.21f1** (Unity_ROS2_Robot_Simulator と同じ版)。6000.0 LTS 以降なら動くはず
+- Windows 向け: Unity Hub で **Windows Build Support (Mono)** を入れる
+- Android 向け: Unity Hub で **Android Build Support** と OpenJDK / SDK / NDK を入れる
+
+このリポジトリは Unity プロジェクトそのものです (`Assets/`, `Packages/`, `ProjectSettings/`)。
+ステージのメッシュ (`Assets/Resources/Stage/*.stl`) は `Assets/Editor/StlImporter.cs` が取り込むので、
+初回に Unity で開いたときに自動で Mesh アセットになります。
+
+### Unity Editor から
+
+1. Unity Hub でこのディレクトリを開く
+2. メニュー **CoRE > Build > Windows (x64)** (または Android (APK))
+3. `Builds/Windows/CoRESimulator.exe` (または `Builds/Android/CoRESimulator.apk`) ができる
+
+Editor で動作を見るだけなら、`Assets/Scenes/Main.unity` を開いて Play を押してください。
+シーンは空で、ゲームは起動時にコードから組み立てられます (`GameBootstrap`)。
+
+### コマンドラインから
+
+```bash
+# Windows 向け (Linux / macOS の Editor からクロスビルドできる)
+tools/build.sh Windows64
+# Android
+tools/build.sh Android
+# Linux
+tools/build.sh Linux64
+```
+
+`tools/build.sh` は `UNITY_EDITOR` 環境変数 (既定: `~/Unity/Hub/Editor/6000.3.21f1/Editor/Unity`) の
+Unity をバッチモードで起動し、`CoreSim.EditorTools.CoreBuild.BuildFromCommandLine` を実行します。
+
+> **注意**: バッチモードでも Unity のライセンス認証が必要です。Unity Hub にサインインした状態
+> (ライセンスクライアントが生きている状態) で実行してください。サインインしていないと
+> `No valid Unity Editor license found` で止まります。
+
+### Unity を起動せずにコンパイルだけ確認する
+
+```bash
+tools/check_compile.sh
+```
+
+Unity 同梱の Roslyn で 5 つのアセンブリ (Rules / Net / Game / Editor / Tests) をコンパイルし、
+ルールと通信層の NUnit テストを dotnet で実行します (通信層はループバックで実際にソケットを開きます)。Unity の Editor DLL と、参照用に
+Unity_ROS2_Robot_Simulator の `Library/ScriptAssemblies` (uGUI と Input System の DLL) を使います。
+ライセンスが無い CI でも通せます。
+
+## 現在の状態 (v0.3)
+
+- v0.3 で大会ルールモードを追加。ルール判定は `CoreSim.Rules.TournamentRound` (純 C#) で、
+  単体テスト 14 件 (HP・復活・陣地・ヘッドアタッカー・スキル・ピットイン・勝敗) を通しています。
+  Unity 上での動作確認はこれからです。2027 フィールドの見た目と当たり判定、CPU の補給の動き、
+  ネット対戦での大会ルールの同期は実機で見て直す必要があります
+
+- v0.1 で「Space を押してもディスクが出ない」不具合がありました。原因は、ディスクを
+  `CreatePrimitive` で作って付属の CapsuleCollider を `Destroy` していたことです。Destroy は
+  フレーム末まで遅延するので、生成直後の物理ステップでそのコライダが自機のシュータに当たり、
+  「何かに触れたら消える」判定で即座に消えていました。見た目だけの物体は当たり判定を付けずに
+  作る `Visuals` に置き換えて直しています (機体の部品も同じ方式に揃えました)
+- ネット対戦の通信層 (`Assets/Scripts/Net`) は Unity に依存しない C# で、`tools/check_compile.sh`
+  が UDP / TCP それぞれで参加 → ロビー → 操作 → スナップショット → 切断までをループバックで
+  実際に通しています (テスト 16 件)。Unity 上で 2 台を繋いだ確認はまだです
+- Android 向けは、タッチ操作・低負荷メッシュ・横向き固定までプロジェクトに入れてありますが、
+  実機では未検証です
+
+## ディレクトリ
+
+```
+Assets/
+  Editor/           StlImporter (STL → Mesh)、CoreBuild (シーン生成・ビルド)
+  Scenes/Main.unity 空のシーン
+  Scripts/Rules/    Unity に依存しない試合進行・HP・大会ルール (CoreSim.Rules)
+  Resources/Field2027/  フィールド (CoRE-1 2027。ルールナビの簡略 3D モデルから変換) と manifest
+  Scripts/Net/      Unity に依存しない通信層 (CoreSim.Net): プロトコル、UDP/TCP、ホスト/クライアント、LAN 検索
+  Scripts/Game/     ゲーム本体 (機体、駆動、射出、CPU、HUD、メニュー、ネット対戦の組み込み)
+  Tests/EditMode/   Rules と Net の NUnit テスト
+docs/DESIGN.md      設計と、ROS 2 版からの対応関係
+docs/TOURNAMENT_RULES.md  大会ルールの対応表と、再現できていない点
+docs/SECURITY.md    ネットワーク部分の確認結果と残る前提
+tools/data/         ルールブック本文 (抜き出し) とフィールドの 3D データ
+tools/              ビルド・コンパイル確認・メッシュ間引きのスクリプト
+```
+
+設計の詳細と、ROS 2 版のどの要素をどう置き換えたかは [docs/DESIGN.md](docs/DESIGN.md) を見てください。
+
+## ライセンス
+
+Apache License 2.0 (元になった Unity_ROS2_Robot_Simulator と同じ)。
+フィールドの形状データは CoRE-jp-Isaac-Sim-ROS2-packages 由来の `core_stage.usd` を
+STL に変換し、さらに間引いたものです。

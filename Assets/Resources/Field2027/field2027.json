@@ -1,0 +1,944 @@
+{
+ "source": "CoRE-1 Rule Navigator (Rulebook V27.1.3) embedded field model, converted by tools/import_field2027.py",
+ "fieldWidth": 24.0,
+ "fieldDepth": 15.0,
+ "groups": [
+  {
+   "file": "base_alu",
+   "zone": "base",
+   "material": "alu",
+   "triangles": 1488,
+   "collider": true
+  },
+  {
+   "file": "blockzone_alu",
+   "zone": "blockzone",
+   "material": "alu",
+   "triangles": 288,
+   "collider": true
+  },
+  {
+   "file": "buildsite_alu",
+   "zone": "buildsite",
+   "material": "alu",
+   "triangles": 960,
+   "collider": true
+  },
+  {
+   "file": "common_alu",
+   "zone": "common",
+   "material": "alu",
+   "triangles": 984,
+   "collider": true
+  },
+  {
+   "file": "holderA_alu",
+   "zone": "holderA",
+   "material": "alu",
+   "triangles": 2290,
+   "collider": true
+  },
+  {
+   "file": "holderBC_alu",
+   "zone": "holderBC",
+   "material": "alu",
+   "triangles": 2592,
+   "collider": true
+  },
+  {
+   "file": "spot_alu",
+   "zone": "spot",
+   "material": "alu",
+   "triangles": 3472,
+   "collider": true
+  },
+  {
+   "file": "base_black",
+   "zone": "base",
+   "material": "black",
+   "triangles": 2680,
+   "collider": true
+  },
+  {
+   "file": "common_black",
+   "zone": "common",
+   "material": "black",
+   "triangles": 36,
+   "collider": true
+  },
+  {
+   "file": "holderA_black",
+   "zone": "holderA",
+   "material": "black",
+   "triangles": 8,
+   "collider": true
+  },
+  {
+   "file": "holderBC_black",
+   "zone": "holderBC",
+   "material": "black",
+   "triangles": 120,
+   "collider": true
+  },
+  {
+   "file": "spot_black",
+   "zone": "spot",
+   "material": "black",
+   "triangles": 64,
+   "collider": true
+  },
+  {
+   "file": "wall_black",
+   "zone": "wall",
+   "material": "black",
+   "triangles": 184,
+   "collider": true
+  },
+  {
+   "file": "base_blue",
+   "zone": "base",
+   "material": "blue",
+   "triangles": 208,
+   "collider": true
+  },
+  {
+   "file": "bunker_blue",
+   "zone": "bunker",
+   "material": "blue",
+   "triangles": 108,
+   "collider": true
+  },
+  {
+   "file": "highland_blue",
+   "zone": "highland",
+   "material": "blue",
+   "triangles": 108,
+   "collider": true
+  },
+  {
+   "file": "holderA_blue",
+   "zone": "holderA",
+   "material": "blue",
+   "triangles": 104,
+   "collider": true
+  },
+  {
+   "file": "strider_blue",
+   "zone": "strider",
+   "material": "blue",
+   "triangles": 12,
+   "collider": false
+  },
+  {
+   "file": "wall_blue",
+   "zone": "wall",
+   "material": "blue",
+   "triangles": 4,
+   "collider": true
+  },
+  {
+   "file": "bunker_dark",
+   "zone": "bunker",
+   "material": "dark",
+   "triangles": 352,
+   "collider": true
+  },
+  {
+   "file": "highland_dark",
+   "zone": "highland",
+   "material": "dark",
+   "triangles": 144,
+   "collider": true
+  },
+  {
+   "file": "wall_dark",
+   "zone": "wall",
+   "material": "dark",
+   "triangles": 48,
+   "collider": true
+  },
+  {
+   "file": "base_dmg",
+   "zone": "base",
+   "material": "dmg",
+   "triangles": 2708,
+   "collider": false
+  },
+  {
+   "file": "fence_fence",
+   "zone": "fence",
+   "material": "fence",
+   "triangles": 40,
+   "collider": true
+  },
+  {
+   "file": "supply_floor",
+   "zone": "supply",
+   "material": "floor",
+   "triangles": 40,
+   "collider": false
+  },
+  {
+   "file": "buildsite_glass",
+   "zone": "buildsite",
+   "material": "glass",
+   "triangles": 768,
+   "collider": true
+  },
+  {
+   "file": "holderA_glass",
+   "zone": "holderA",
+   "material": "glass",
+   "triangles": 390,
+   "collider": true
+  },
+  {
+   "file": "spot_glass",
+   "zone": "spot",
+   "material": "glass",
+   "triangles": 100,
+   "collider": true
+  },
+  {
+   "file": "battle_line_blue",
+   "zone": "battle",
+   "material": "line_blue",
+   "triangles": 54,
+   "collider": false
+  },
+  {
+   "file": "battle_line_red",
+   "zone": "battle",
+   "material": "line_red",
+   "triangles": 14,
+   "collider": false
+  },
+  {
+   "file": "battle_line_yel",
+   "zone": "battle",
+   "material": "line_yel",
+   "triangles": 44,
+   "collider": false
+  },
+  {
+   "file": "noentry_noentry",
+   "zone": "noentry",
+   "material": "noentry",
+   "triangles": 56,
+   "collider": false
+  },
+  {
+   "file": "strider_obst",
+   "zone": "strider",
+   "material": "obst",
+   "triangles": 1016,
+   "collider": true
+  },
+  {
+   "file": "base_plate",
+   "zone": "base",
+   "material": "plate",
+   "triangles": 2743,
+   "collider": true
+  },
+  {
+   "file": "battle_plate",
+   "zone": "battle",
+   "material": "plate",
+   "triangles": 84,
+   "collider": false
+  },
+  {
+   "file": "buildsite_plate",
+   "zone": "buildsite",
+   "material": "plate",
+   "triangles": 288,
+   "collider": true
+  },
+  {
+   "file": "holderA_plate",
+   "zone": "holderA",
+   "material": "plate",
+   "triangles": 96,
+   "collider": true
+  },
+  {
+   "file": "spot_plate",
+   "zone": "spot",
+   "material": "plate",
+   "triangles": 428,
+   "collider": true
+  },
+  {
+   "file": "base_red",
+   "zone": "base",
+   "material": "red",
+   "triangles": 216,
+   "collider": true
+  },
+  {
+   "file": "bunker_red",
+   "zone": "bunker",
+   "material": "red",
+   "triangles": 108,
+   "collider": true
+  },
+  {
+   "file": "highland_red",
+   "zone": "highland",
+   "material": "red",
+   "triangles": 108,
+   "collider": true
+  },
+  {
+   "file": "holderA_red",
+   "zone": "holderA",
+   "material": "red",
+   "triangles": 96,
+   "collider": true
+  },
+  {
+   "file": "strider_red",
+   "zone": "strider",
+   "material": "red",
+   "triangles": 12,
+   "collider": false
+  },
+  {
+   "file": "wall_red",
+   "zone": "wall",
+   "material": "red",
+   "triangles": 4,
+   "collider": true
+  },
+  {
+   "file": "strider_strider",
+   "zone": "strider",
+   "material": "strider",
+   "triangles": 184,
+   "collider": false
+  },
+  {
+   "file": "base_white",
+   "zone": "base",
+   "material": "white",
+   "triangles": 88,
+   "collider": true
+  },
+  {
+   "file": "bunker_white",
+   "zone": "bunker",
+   "material": "white",
+   "triangles": 64,
+   "collider": true
+  },
+  {
+   "file": "common_white",
+   "zone": "common",
+   "material": "white",
+   "triangles": 36,
+   "collider": true
+  },
+  {
+   "file": "holderA_white",
+   "zone": "holderA",
+   "material": "white",
+   "triangles": 24,
+   "collider": true
+  },
+  {
+   "file": "holderBC_white",
+   "zone": "holderBC",
+   "material": "white",
+   "triangles": 160,
+   "collider": true
+  },
+  {
+   "file": "spot_white",
+   "zone": "spot",
+   "material": "white",
+   "triangles": 72,
+   "collider": true
+  },
+  {
+   "file": "blockzone_wood",
+   "zone": "blockzone",
+   "material": "wood",
+   "triangles": 312,
+   "collider": true
+  },
+  {
+   "file": "highland_wood",
+   "zone": "highland",
+   "material": "wood",
+   "triangles": 48,
+   "collider": true
+  },
+  {
+   "file": "supply_zone_blue",
+   "zone": "supply",
+   "material": "zone_blue",
+   "triangles": 4,
+   "collider": false
+  },
+  {
+   "file": "supply_zone_red",
+   "zone": "supply",
+   "material": "zone_red",
+   "triangles": 4,
+   "collider": false
+  }
+ ],
+ "palette": [
+  {
+   "name": "floor",
+   "hex": "#c3c8d2"
+  },
+  {
+   "name": "strider",
+   "hex": "#d4d9e1"
+  },
+  {
+   "name": "line_red",
+   "hex": "#d7263d"
+  },
+  {
+   "name": "line_blue",
+   "hex": "#2356cf"
+  },
+  {
+   "name": "line_yel",
+   "hex": "#e0a800"
+  },
+  {
+   "name": "zone_red",
+   "hex": "#e7a3ad"
+  },
+  {
+   "name": "zone_blue",
+   "hex": "#a7b9e6"
+  },
+  {
+   "name": "alu",
+   "hex": "#b8bfc8"
+  },
+  {
+   "name": "glass",
+   "hex": "#cfdbee"
+  },
+  {
+   "name": "plate",
+   "hex": "#eef0f3"
+  },
+  {
+   "name": "black",
+   "hex": "#2d3139"
+  },
+  {
+   "name": "dark",
+   "hex": "#5b606b"
+  },
+  {
+   "name": "red",
+   "hex": "#d7263d"
+  },
+  {
+   "name": "blue",
+   "hex": "#2356cf"
+  },
+  {
+   "name": "white",
+   "hex": "#f7f7f7"
+  },
+  {
+   "name": "cbody",
+   "hex": "#e6e9ee"
+  },
+  {
+   "name": "wood",
+   "hex": "#e3c48f"
+  },
+  {
+   "name": "dmg",
+   "hex": "#575b61"
+  },
+  {
+   "name": "obst",
+   "hex": "#e3d6b8"
+  },
+  {
+   "name": "noentry",
+   "hex": "#efe6d3"
+  },
+  {
+   "name": "fence",
+   "hex": "#c8b28a"
+  }
+ ],
+ "basePanels": [
+  {
+   "side": "blue",
+   "high": false,
+   "center": [
+    8.6008,
+    0.2228,
+    -5.4597
+   ],
+   "normal": [
+    -0.7071,
+    0.0,
+    -0.7071
+   ],
+   "size": [
+    0.1205,
+    0.178,
+    0.12
+   ]
+  },
+  {
+   "side": "blue",
+   "high": false,
+   "center": [
+    8.6012,
+    0.2228,
+    -4.8999
+   ],
+   "normal": [
+    -0.7071,
+    0.0033,
+    0.7071
+   ],
+   "size": [
+    0.1205,
+    0.178,
+    0.12
+   ]
+  },
+  {
+   "side": "blue",
+   "high": false,
+   "center": [
+    9.159,
+    0.2251,
+    -4.9005
+   ],
+   "normal": [
+    0.7071,
+    -0.0033,
+    0.7071
+   ],
+   "size": [
+    0.1205,
+    0.178,
+    0.1205
+   ]
+  },
+  {
+   "side": "blue",
+   "high": false,
+   "center": [
+    9.1594,
+    0.2255,
+    -5.4592
+   ],
+   "normal": [
+    0.7071,
+    -0.0033,
+    -0.7071
+   ],
+   "size": [
+    0.1205,
+    0.178,
+    0.1205
+   ]
+  },
+  {
+   "side": "blue",
+   "high": true,
+   "center": [
+    8.552,
+    0.8672,
+    -5.1803
+   ],
+   "normal": [
+    -0.9395,
+    -0.3425,
+    0.0
+   ],
+   "size": [
+    0.0805,
+    0.1745,
+    0.1505
+   ]
+  },
+  {
+   "side": "blue",
+   "high": true,
+   "center": [
+    9.2059,
+    0.8696,
+    -5.18
+   ],
+   "normal": [
+    0.9395,
+    -0.3425,
+    -0.0
+   ],
+   "size": [
+    0.081,
+    0.1745,
+    0.15
+   ]
+  },
+  {
+   "side": "red",
+   "high": false,
+   "center": [
+    -9.1593,
+    0.2216,
+    4.9003
+   ],
+   "normal": [
+    -0.7071,
+    0.0,
+    -0.7071
+   ],
+   "size": [
+    0.12,
+    0.178,
+    0.1205
+   ]
+  },
+  {
+   "side": "red",
+   "high": false,
+   "center": [
+    -9.1592,
+    0.2212,
+    5.4598
+   ],
+   "normal": [
+    -0.7071,
+    0.0,
+    0.7071
+   ],
+   "size": [
+    0.12,
+    0.178,
+    0.1205
+   ]
+  },
+  {
+   "side": "red",
+   "high": false,
+   "center": [
+    -8.6003,
+    0.2221,
+    4.9012
+   ],
+   "normal": [
+    0.7054,
+    0.0008,
+    -0.7088
+   ],
+   "size": [
+    0.12,
+    0.178,
+    0.12
+   ]
+  },
+  {
+   "side": "red",
+   "high": false,
+   "center": [
+    -8.6002,
+    0.2225,
+    5.4588
+   ],
+   "normal": [
+    0.7054,
+    0.0025,
+    0.7088
+   ],
+   "size": [
+    0.12,
+    0.178,
+    0.12
+   ]
+  },
+  {
+   "side": "red",
+   "high": true,
+   "center": [
+    -9.2062,
+    0.8696,
+    5.18
+   ],
+   "normal": [
+    -0.938,
+    -0.3466,
+    0.0
+   ],
+   "size": [
+    0.0805,
+    0.1745,
+    0.15
+   ]
+  },
+  {
+   "side": "red",
+   "high": true,
+   "center": [
+    -8.5524,
+    0.8667,
+    5.1807
+   ],
+   "normal": [
+    0.9395,
+    -0.3425,
+    -0.0
+   ],
+   "size": [
+    0.081,
+    0.1745,
+    0.1505
+   ]
+  }
+ ],
+ "bunkerTops": [
+  {
+   "xMin": 4.413,
+   "zMin": 3.154,
+   "xMax": 5.346,
+   "zMax": 4.732,
+   "y": 0.29
+  },
+  {
+   "xMin": 5.679,
+   "zMin": 2.423,
+   "xMax": 6.612,
+   "zMax": 4.0,
+   "y": 0.29
+  },
+  {
+   "xMin": -5.346,
+   "zMin": -4.732,
+   "xMax": -4.413,
+   "zMax": -3.154,
+   "y": 0.29
+  },
+  {
+   "xMin": -6.612,
+   "zMin": -4.0,
+   "xMax": -5.679,
+   "zMax": -2.423,
+   "y": 0.29
+  },
+  {
+   "xMin": -11.962,
+   "zMin": 4.5,
+   "xMax": -10.562,
+   "zMax": 5.9,
+   "y": 0.15
+  },
+  {
+   "xMin": 10.562,
+   "zMin": -5.9,
+   "xMax": 11.962,
+   "zMax": -4.5,
+   "y": 0.15
+  }
+ ],
+ "startZones": [
+  {
+   "side": "red",
+   "xz": [
+    -12.0,
+    -3.5,
+    -9.0,
+    -3.5,
+    -8.5,
+    -4.0,
+    -8.5,
+    -7.5,
+    -12.0,
+    -7.5
+   ]
+  },
+  {
+   "side": "blue",
+   "xz": [
+    12.0,
+    3.5,
+    9.0,
+    3.5,
+    8.5,
+    4.0,
+    8.5,
+    7.5,
+    12.0,
+    7.5
+   ]
+  }
+ ],
+ "supplyZones": [
+  {
+   "side": "blue",
+   "xMin": 12.0,
+   "zMin": 3.6,
+   "xMax": 13.8,
+   "zMax": 7.5
+  },
+  {
+   "side": "red",
+   "xMin": -13.8,
+   "zMin": -7.5,
+   "xMax": -12.0,
+   "zMax": -3.6
+  }
+ ],
+ "noEntryZones": [
+  {
+   "xz": [
+    5.595,
+    2.22,
+    6.612,
+    3.982,
+    7.842,
+    0.912,
+    6.824,
+    -0.85
+   ],
+   "cx": 6.718,
+   "cz": 1.566,
+   "yawDeg": 158.16,
+   "length": 4.563,
+   "width": 1.6
+  },
+  {
+   "xz": [
+    -7.843,
+    -0.912,
+    -6.825,
+    0.85,
+    -5.595,
+    -2.22,
+    -6.612,
+    -3.982
+   ],
+   "cx": -6.718,
+   "cz": -1.566,
+   "yawDeg": 158.15,
+   "length": 4.563,
+   "width": 1.6
+  }
+ ],
+ "spawns": [
+  {
+   "side": "red",
+   "points": [
+    {
+     "x": -9.8,
+     "y": 0.15,
+     "z": -5.1,
+     "yawDeg": 0.0
+    },
+    {
+     "x": -9.8,
+     "y": 0.15,
+     "z": -6.4,
+     "yawDeg": 0.0
+    },
+    {
+     "x": -10.2,
+     "y": 0.15,
+     "z": -5.1,
+     "yawDeg": 0.0
+    },
+    {
+     "x": -10.2,
+     "y": 0.15,
+     "z": -6.4,
+     "yawDeg": 0.0
+    },
+    {
+     "x": -10.6,
+     "y": 0.15,
+     "z": -5.1,
+     "yawDeg": 0.0
+    },
+    {
+     "x": -10.6,
+     "y": 0.15,
+     "z": -6.4,
+     "yawDeg": 0.0
+    },
+    {
+     "x": -11.0,
+     "y": 0.15,
+     "z": -5.1,
+     "yawDeg": 0.0
+    },
+    {
+     "x": -11.0,
+     "y": 0.15,
+     "z": -6.4,
+     "yawDeg": 0.0
+    }
+   ]
+  },
+  {
+   "side": "blue",
+   "points": [
+    {
+     "x": 9.8,
+     "y": 0.15,
+     "z": 5.1,
+     "yawDeg": 180.0
+    },
+    {
+     "x": 9.8,
+     "y": 0.15,
+     "z": 6.4,
+     "yawDeg": 180.0
+    },
+    {
+     "x": 10.2,
+     "y": 0.15,
+     "z": 5.1,
+     "yawDeg": 180.0
+    },
+    {
+     "x": 10.2,
+     "y": 0.15,
+     "z": 6.4,
+     "yawDeg": 180.0
+    },
+    {
+     "x": 10.6,
+     "y": 0.15,
+     "z": 5.1,
+     "yawDeg": 180.0
+    },
+    {
+     "x": 10.6,
+     "y": 0.15,
+     "z": 6.4,
+     "yawDeg": 180.0
+    },
+    {
+     "x": 11.0,
+     "y": 0.15,
+     "z": 5.1,
+     "yawDeg": 180.0
+    },
+    {
+     "x": 11.0,
+     "y": 0.15,
+     "z": 6.4,
+     "yawDeg": 180.0
+    }
+   ]
+  }
+ ]
+}
