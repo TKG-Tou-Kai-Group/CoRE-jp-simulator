@@ -156,7 +156,7 @@ Unity 同梱の Roslyn で 5 つのアセンブリ (Rules / Net / Game / Editor 
 Unity_ROS2_Robot_Simulator の `Library/ScriptAssemblies` (uGUI と Input System の DLL) を使います。
 ライセンスが無い CI でも通せます。
 
-## 現在の状態 (v0.3)
+## 現在の状態 (v0.3.0)
 
 - v0.3 で大会ルールモードを追加。ルール判定は `CoreSim.Rules.TournamentRound` (純 C#) で、
   単体テスト 14 件 (HP・復活・陣地・ヘッドアタッカー・スキル・ピットイン・勝敗) を通しています。
