@@ -11,10 +11,10 @@ namespace CoreSim.Tests
         [Test]
         public void SplitsHostAndPort()
         {
-            string host = "pro1.ssnetwork.io:53786"; int port = 7777;
+            string host = "dummy.io:9999"; int port = 7777;
             NetAddress.SplitHostPort(ref host, ref port);
-            Assert.AreEqual("pro1.ssnetwork.io", host);
-            Assert.AreEqual(53786, port);
+            Assert.AreEqual("dummy.io", host);
+            Assert.AreEqual(9999, port);
 
             host = " 192.168.1.10 "; port = 7777;
             NetAddress.SplitHostPort(ref host, ref port);
