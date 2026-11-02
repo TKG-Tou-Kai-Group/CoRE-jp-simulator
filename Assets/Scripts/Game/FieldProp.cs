@@ -85,19 +85,24 @@ namespace CoreSim
         }
 
         /// <summary>
-        /// kind の物体の底面が bottom にあるとき、maxDistance 以内で空きのある置き場所のうち最も近いもの。
+        /// kind の物体の底面が bottom にあるとき、空きのある置き場所のうち、次に置く段の底面が水平に maxFlat 以内、
+        /// 高さの差が maxHeight 以内にあるもので最も近いもの。高さを別に見るのは、スポットの段 (275 mm 間隔) や
+        /// ビルドサイトの 2 段目に、床の高さで放した物が吸い込まれないようにするため。
         /// </summary>
-        public PropSlot NearestOpenSlot(PropKind kind, Vector3 bottom, float maxDistance)
+        public PropSlot NearestOpenSlot(PropKind kind, Vector3 bottom, float maxFlat, float maxHeight)
         {
             PropSlot best = null;
-            float bestDist = maxDistance * maxDistance;
+            float bestDist = maxFlat * maxFlat;
             foreach (PropSlot s in Slots)
             {
                 if (!s.Accepts(kind) || s.Full) continue;
-                float d = (s.NextBottom - bottom).sqrMagnitude;
-                if (d < bestDist)
+                Vector3 d = s.NextBottom - bottom;
+                if (Mathf.Abs(d.y) > maxHeight) continue;
+                d.y = 0f;
+                float flat = d.sqrMagnitude;
+                if (flat < bestDist)
                 {
-                    bestDist = d;
+                    bestDist = flat;
                     best = s;
                 }
             }

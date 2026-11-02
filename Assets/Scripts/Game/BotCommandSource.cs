@@ -20,11 +20,19 @@ namespace CoreSim
         public float PreferredRange = 5f;
         public float FireRange = 9f;
         public float FireConeDeg = 5f;
+        /// <summary>
+        /// ビルダーはこの距離より近くに来たときだけ狙う (一度狙ったら <see cref="BuilderKeepRange"/> まで追う)。
+        /// 遠くのビルダーを追ってブロックゾーンやスポットの周りをうろつくと、人がビルダーで作業できない。
+        /// 相手にアタッカーがいなければ距離に関係なく狙う。
+        /// </summary>
+        public float BuilderEngageRange = 4f;
+        public float BuilderKeepRange = 7f;
         /// <summary>大会ルールのとき。陣地攻撃と補給の判断に使う。</summary>
         public TournamentController Tournament;
 
         private float m_NextThinkTime;
         private RobotCommand m_Current;
+        private RobotAgent m_Target;
         private float m_StrafeSign = 1f;
         private float m_NextStrafeFlip;
         private float m_AimOffsetDeg;
@@ -124,11 +132,15 @@ namespace CoreSim
             }
             if (target == null)
             {
-                // 相手がいなければ中央へ向かって流す。
+                // 狙う相手がいなければフィールド中央へ (経路で)。着いたら中央を向いて少し横に動きながら待つ
                 Vector3 toCenter = -t.position;
                 toCenter.y = 0f;
-                cmd.Turn = SignedBearing(t, toCenter) / 45f;
-                cmd.Move = new Vector2(0f, toCenter.magnitude > 3f ? 0.6f : 0f);
+                if (toCenter.magnitude > 3f)
+                {
+                    return Steer(t, Vector3.zero, 3f, blockedAhead, blockedLeft, blockedRight);
+                }
+                cmd.Turn = Mathf.Clamp(SignedBearing(t, toCenter) / 45f, -1f, 1f);
+                cmd.Move = new Vector2(m_StrafeSign * 0.3f, 0f);
             }
             else
             {
@@ -242,15 +254,23 @@ namespace CoreSim
             return best;
         }
 
+        /// <summary>
+        /// 狙う相手。いちばん近い敵のアタッカー / ヘッド。ビルダーは近く (<see cref="BuilderEngageRange"/>) に来たときだけ、
+        /// または敵にアタッカーがいないときだけ狙う。
+        /// </summary>
         private RobotAgent Nearest(Vector3 from)
         {
-            RobotAgent best = null;
-            float bestDist = float.MaxValue;
             IReadOnlyList<RobotAgent> robots = Robots != null ? Robots() : null;
             if (robots == null)
             {
+                m_Target = null;
                 return null;
             }
+            RobotAgent best = null;
+            float bestDist = float.MaxValue;
+            RobotAgent nearBuilder = null;
+            float nearBuilderDist = float.MaxValue;
+            bool anyFighter = false;
             foreach (RobotAgent r in robots)
             {
                 if (r == null || r == Self || r.IsKnockedOut)
@@ -262,12 +282,28 @@ namespace CoreSim
                     continue;
                 }
                 float d = (r.transform.position - from).sqrMagnitude;
+                if (r.IsBuilder)
+                {
+                    if (d < nearBuilderDist) { nearBuilderDist = d; nearBuilder = r; }
+                    continue;
+                }
+                anyFighter = true;
                 if (d < bestDist)
                 {
                     bestDist = d;
                     best = r;
                 }
             }
+            if (nearBuilder != null)
+            {
+                float keep = m_Target == nearBuilder ? BuilderKeepRange : BuilderEngageRange;
+                bool engage = !anyFighter || nearBuilderDist < keep * keep;
+                if (engage && nearBuilderDist < bestDist)
+                {
+                    best = nearBuilder;
+                }
+            }
+            m_Target = best;
             return best;
         }
 
