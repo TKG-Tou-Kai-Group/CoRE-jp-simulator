@@ -28,6 +28,15 @@ namespace CoreSim
             body.angularDamping = 0.5f;
             body.linearDamping = 0f;
             body.maxAngularVelocity = 10f;
+            // 構造物にめり込んだときの押し出し速度の上限。既定 (3 m/s) だと「吹き飛ぶ」ように見える
+            body.maxDepenetrationVelocity = 1.5f;
+
+            // ---- 車体の当たり判定: バンパーの高さ (0.05〜0.15) の一枚の箱 ----
+            // 薄い板 4 枚 (厚さ 1 cm) だとメッシュの面をすり抜けて中に入り込み、押し出されて飛ぶことがあった。
+            // 中身の詰まった箱なら面の内側に入れない。ディスクが当たる装甲板はこれより上にある
+            var hull = root.AddComponent<BoxCollider>();
+            hull.center = new Vector3(0f, 0.10f, 0f);
+            hull.size = new Vector3(0.9f, 0.10f, 0.9f);
 
             Material white = MaterialLibrary.Color(new Color(0.92f, 0.92f, 0.92f), 0.4f);
             Material gray = MaterialLibrary.Color(new Color(0.35f, 0.35f, 0.38f), 0.3f);
@@ -35,7 +44,7 @@ namespace CoreSim
 
             // ---- base_frame_link: 0.6 x 0.6 x 0.02 の板、base_link の +0.06 ----
             Box(root, "base_frame", Tuning.RosToUnity(0f, 0f, 0.06f), Quaternion.identity,
-                new Vector3(0.6f, 0.02f, 0.6f), white, collider: true);
+                new Vector3(0.6f, 0.02f, 0.6f), white, collider: false);
 
             // ---- 接地脚 4 個: 摩擦 0 の球 (半径 0.05) + 車輪の見た目 ----
             float[] sx = { 0.35f, -0.35f, -0.35f, 0.35f };
@@ -55,11 +64,11 @@ namespace CoreSim
                                Quaternion.FromToRotation(Vector3.up, radial), new Vector3(0.1f, 0.02f, 0.1f), dark);
             }
 
-            // ---- バンパー 4 枚: 0.9 x 0.01 x 0.10、base_link の z 0.10 ----
-            Box(root, "bumper_back", Tuning.RosToUnity(-0.45f, 0f, 0.10f), Quaternion.identity, new Vector3(0.9f, 0.10f, 0.01f), white, true);
-            Box(root, "bumper_front", Tuning.RosToUnity(0.45f, 0f, 0.10f), Quaternion.identity, new Vector3(0.9f, 0.10f, 0.01f), white, true);
-            Box(root, "bumper_left", Tuning.RosToUnity(0f, 0.45f, 0.10f), Quaternion.identity, new Vector3(0.01f, 0.10f, 0.9f), white, true);
-            Box(root, "bumper_right", Tuning.RosToUnity(0f, -0.45f, 0.10f), Quaternion.identity, new Vector3(0.01f, 0.10f, 0.9f), white, true);
+            // ---- バンパー 4 枚: 0.9 x 0.01 x 0.10、base_link の z 0.10 (見た目。当たり判定は上の箱) ----
+            Box(root, "bumper_back", Tuning.RosToUnity(-0.45f, 0f, 0.10f), Quaternion.identity, new Vector3(0.9f, 0.10f, 0.01f), white, false);
+            Box(root, "bumper_front", Tuning.RosToUnity(0.45f, 0f, 0.10f), Quaternion.identity, new Vector3(0.9f, 0.10f, 0.01f), white, false);
+            Box(root, "bumper_left", Tuning.RosToUnity(0f, 0.45f, 0.10f), Quaternion.identity, new Vector3(0.01f, 0.10f, 0.9f), white, false);
+            Box(root, "bumper_right", Tuning.RosToUnity(0f, -0.45f, 0.10f), Quaternion.identity, new Vector3(0.01f, 0.10f, 0.9f), white, false);
 
             Transform muzzle = null;
             var rollers = new List<Transform>();
@@ -110,9 +119,13 @@ namespace CoreSim
                 Material handMat = MaterialLibrary.Color(new Color(0.9f, 0.6f, 0.15f), 0.4f, 0.2f);
                 foreach (float side in new[] { 0.14f, -0.14f })
                 {
-                    Box(root, "mast", Tuning.RosToUnity(0.33f, side, 0.58f), Quaternion.identity, new Vector3(0.04f, 1.04f, 0.05f), mastMat, true);
+                    Box(root, "mast", Tuning.RosToUnity(0.33f, side, 0.58f), Quaternion.identity, new Vector3(0.04f, 1.04f, 0.05f), mastMat, false);
                 }
                 Box(root, "mast_top", Tuning.RosToUnity(0.33f, 0f, 1.11f), Quaternion.identity, new Vector3(0.36f, 0.04f, 0.05f), mastMat, false);
+                // マストの当たり判定は 2 本まとめて 1 つの箱 (細い柱 2 本だと棚板の縁に引っ掛かって抜けなくなる)
+                var mastHull = root.AddComponent<BoxCollider>();
+                mastHull.center = Tuning.RosToUnity(0.33f, 0f, 0.58f);
+                mastHull.size = new Vector3(0.36f, 1.04f, 0.05f);
                 var carriage = new GameObject("carriage");
                 carriage.transform.SetParent(root.transform, false);
                 carriage.transform.localPosition = Tuning.RosToUnity(0.36f, 0f, 0.0f);   // y はリフトが決める

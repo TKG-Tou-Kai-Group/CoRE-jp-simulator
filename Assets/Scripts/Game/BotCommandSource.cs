@@ -8,7 +8,7 @@ namespace CoreSim
     /// CPU 操縦。いちばん近い敵へ向き直り、間合いを取りつつ正面に捉えたら撃つ。
     /// 人と同じ <see cref="RobotCommand"/> を出すので、速度や射撃間隔の条件は人と同じ。
     /// </summary>
-    public sealed class BotCommandSource : ICommandSource
+    public sealed class BotCommandSource : ICommandSource, IBotStatus
     {
         public RobotAgent Self;
         public System.Func<IReadOnlyList<RobotAgent>> Robots;
@@ -33,6 +33,20 @@ namespace CoreSim
         private float m_NextThinkTime;
         private RobotCommand m_Current;
         private RobotAgent m_Target;
+        private string m_Mode = "";
+        private bool m_PathOk;
+
+        /// <summary>F9 のデバッグ表示: 今の判断、経路、速度。</summary>
+        public string Status
+        {
+            get
+            {
+                float speed = Self != null && Self.Drive != null ? Self.Drive.Speed : 0f;
+                string path = m_Path.corners != null && m_Path.corners.Length >= 2 ? $"経路 {m_Path.corners.Length} 角" : (m_PathOk ? "経路 なし" : "経路 失敗");
+                string escape = Time.time < m_EscapeUntil ? "  [脱出中]" : "";
+                return $"{m_Mode}  {path}  {speed:F2} m/s  指令 ({m_Current.Move.x:F1}, {m_Current.Move.y:F1}, 旋回 {m_Current.Turn:F1}){escape}";
+            }
+        }
         private float m_StrafeSign = 1f;
         private float m_NextStrafeFlip;
         private float m_AimOffsetDeg;
@@ -97,11 +111,13 @@ namespace CoreSim
                 if (me != null && me.PitInGranted)
                 {
                     // この機体にピットインが発動されていれば補給エリアへ (弾が残っていても行く)
+                    m_Mode = "ピットイン: 補給エリアへ";
                     return Steer(t, Tournament.Field.SupplyPoint(TournamentController.SideName(me.Side)), 0.4f, blockedAhead, blockedLeft, blockedRight);
                 }
                 if (me != null && me.Magazine == 0)
                 {
                     // 許可がないのに入ると反則なので、自同盟のスタートゾーンの内側 (補給エリアから離れた点) で待つ
+                    m_Mode = "弾切れ: スタートゾーンで待機";
                     return Steer(t, Tournament.Field.Spawn(TournamentController.SideName(me.Side), 0).position, 1.0f, blockedAhead, blockedLeft, blockedRight);
                 }
                 if (me != null && Tournament.View.BaseAttackActive(Tournament.Round.Config))
@@ -112,6 +128,7 @@ namespace CoreSim
                         BasePanel panel = NearestPanel(enemySide, t.position);
                         if (panel != null)
                         {
+                            m_Mode = "相手の陣地を攻撃";
                             Vector3 aim = panel.transform.position;
                             aim.y = 0f;
                             Vector3 to = aim - t.position;
@@ -135,10 +152,12 @@ namespace CoreSim
                 // 狙う相手がいなければフィールド中央へ (経路で)。着いたら中央を向いて少し横に動きながら待つ
                 Vector3 toCenter = -t.position;
                 toCenter.y = 0f;
+                m_Mode = "相手なし: 中央へ";
                 if (toCenter.magnitude > 3f)
                 {
                     return Steer(t, Vector3.zero, 3f, blockedAhead, blockedLeft, blockedRight);
                 }
+                m_Mode = "相手なし: 中央で待機";
                 cmd.Turn = Mathf.Clamp(SignedBearing(t, toCenter) / 45f, -1f, 1f);
                 cmd.Move = new Vector2(m_StrafeSign * 0.3f, 0f);
             }
@@ -152,10 +171,12 @@ namespace CoreSim
                 if (dist > PreferredRange + 1.5f && (!clearLine || dist > 9f))
                 {
                     // 遠い・見えないときは NavMesh の経路で近づく (スロープの先の谷などへ落ちない)
+                    m_Mode = $"{target.DisplayName} へ接近 {dist:F1} m" + (blockedAhead ? " 前方に障害物" : "");
                     return Steer(t, target.transform.position, PreferredRange, blockedAhead, blockedLeft, blockedRight);
                 }
                 float bearing = SignedBearing(t, to) + m_AimOffsetDeg;
                 cmd.Turn = Mathf.Clamp(bearing / 30f, -1f, 1f);
+                m_Mode = $"{target.DisplayName} と交戦 {dist:F1} m" + (clearLine ? "" : " (遮られている)") + (blockedAhead ? " 前方に障害物" : "");
 
                 float forward = 0f;
                 if (dist > PreferredRange + 1.5f) forward = 1f;
@@ -226,6 +247,7 @@ namespace CoreSim
                           NavMesh.SamplePosition(goal, out NavMeshHit b, 2.0f, mask) &&
                           NavMesh.CalculatePath(a.position, b.position, mask, m_Path) &&
                           m_Path.status != NavMeshPathStatus.PathInvalid;
+                m_PathOk = ok;
                 if (!ok) m_Path.ClearCorners();
             }
             Vector3[] corners = m_Path.corners;

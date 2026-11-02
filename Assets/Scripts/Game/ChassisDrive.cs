@@ -57,7 +57,9 @@ namespace CoreSim
             int mask = ~((1 << Tuning.LayerDisc) | (1 << Tuning.LayerMinimapOnly) | (1 << Tuning.LayerRobot));
             m_Grounded = Physics.Raycast(transform.position + Vector3.up * 0.3f, Vector3.down, out RaycastHit hit, 0.5f, mask);
             m_GroundNormal = m_Grounded ? hit.normal : Vector3.up;
-            if (m_Grounded && m_GroundNormal.y > 0.5f && m_GroundNormal.y < 0.999f)
+            // 登れる斜面 (約 37 度まで) だけ。もっと急な面 (段差の角や構造物の斜めの面) に乗り上げたときに
+            // 面の上向きへ押すと、構造物へ押し付けられて動けなくなる
+            if (m_Grounded && m_GroundNormal.y > 0.8f && m_GroundNormal.y < 0.999f)
             {
                 Vector3 g = Physics.gravity;
                 Vector3 tangential = g - Vector3.Dot(g, m_GroundNormal) * m_GroundNormal;

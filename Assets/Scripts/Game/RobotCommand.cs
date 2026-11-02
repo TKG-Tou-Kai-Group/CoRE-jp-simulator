@@ -24,4 +24,10 @@ namespace CoreSim
     {
         RobotCommand Read();
     }
+
+    /// <summary>CPU の判断の中身 (F9 のデバッグ表示用)。</summary>
+    public interface IBotStatus
+    {
+        string Status { get; }
+    }
 }

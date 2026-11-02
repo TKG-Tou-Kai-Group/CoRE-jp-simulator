@@ -11,7 +11,7 @@ namespace CoreSim
     /// 運搬は (1) 物の正面に立つ → (2) ハンドの高さを合わせてつかむ → (3) 置き場所の正面へ → (4) 高さを合わせて置く、
     /// の繰り返し。移動は NavMesh の経路、正面の位置は構造物に当たらない向きをレイで探す。
     /// </summary>
-    public sealed class BotBuilderSource : ICommandSource
+    public sealed class BotBuilderSource : ICommandSource, IBotStatus
     {
         public RobotAgent Self;
         public System.Func<IReadOnlyList<RobotAgent>> Robots;
@@ -38,6 +38,21 @@ namespace CoreSim
         private readonly HashSet<FieldProp> m_Failed = new HashSet<FieldProp>();
 
         private PropRegistry Registry => Self != null && Self.Lift != null ? Self.Lift.Registry : null;
+
+        /// <summary>F9 のデバッグ表示: 段階、目標、速度。</summary>
+        public string Status
+        {
+            get
+            {
+                float speed = Self != null && Self.Drive != null ? Self.Drive.Speed : 0f;
+                string target = m_Target != null ? m_Target.Label : "-";
+                string dest = m_Dest != null ? m_Dest.Label : "-";
+                string held = Self != null && Self.Lift != null && Self.Lift.Held != null ? Self.Lift.Held.Label : "なし";
+                string path = m_Path.corners != null && m_Path.corners.Length >= 2 ? $"経路 {m_Path.corners.Length} 角" : "経路 なし";
+                string escape = Time.time < m_EscapeUntil ? "  [脱出中]" : "";
+                return $"{m_Phase}  目標 {target} → {dest}  持ち物 {held}  {path}  {speed:F2} m/s{escape}";
+            }
+        }
         private string MySide => Self.Team == Team.Red ? "red" : "blue";
         private Side MyRuleSide => Self.Team == Team.Red ? Side.Red : Side.Blue;
 

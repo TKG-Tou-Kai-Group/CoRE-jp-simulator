@@ -40,6 +40,19 @@ namespace CoreSim
         public bool Post;               // スポット 1・5・8・12・15・16 (四角柱あり。差し込みの判定は省略)
         public readonly List<FieldProp> Stack = new List<FieldProp>();
 
+        // 置ける範囲: 持っている物の底面と、次に置く段の底面の差
+        public const float PlaceRange = 0.15f;            // 水平。半分は重なっている必要がある
+        public const float PlaceHeightTolerance = 0.12f;  // 高さ。スポットの段の間隔 (0.275) より小さく
+        public const float ValleyPlaceRange = 0.45f;      // 谷部は広め: 高台の上から溝へ落とし込む
+        public const float ValleyPlaceDepth = 0.40f;      // 谷部は上から (高台の床の高さ 0.2 + 余裕)
+
+        /// <summary>この置き場所に置ける範囲 (水平、上から、下から)。谷部はビルドサイトと同じく「近くで放せば揃えて入る」。</summary>
+        public void Tolerance(out float flat, out float above, out float below)
+        {
+            if (Kind == PlaceKind.Valley) { flat = ValleyPlaceRange; above = ValleyPlaceDepth; below = PlaceHeightTolerance; }
+            else { flat = PlaceRange; above = PlaceHeightTolerance; below = PlaceHeightTolerance; }
+        }
+
         public int Count => Stack.Count;
         public bool Full => Stack.Count >= Levels;
         public bool Accepts(PropKind kind) => Kind == PlaceKind.Spot ? kind == PropKind.Container : kind == PropKind.Block;
@@ -85,26 +98,25 @@ namespace CoreSim
         }
 
         /// <summary>
-        /// kind の物体の底面が bottom にあるとき、空きのある置き場所のうち、次に置く段の底面が水平に maxFlat 以内、
-        /// 高さの差が maxHeight 以内にあるもので最も近いもの。高さを別に見るのは、スポットの段 (275 mm 間隔) や
-        /// ビルドサイトの 2 段目に、床の高さで放した物が吸い込まれないようにするため。
+        /// kind の物体の底面が bottom にあるとき、空きのある置き場所のうち、次に置く段の底面が置き場所ごとの範囲
+        /// (<see cref="PropSlot.Tolerance"/>) にあるもので水平に最も近いもの。高さを別に見るのは、スポットの段
+        /// (275 mm 間隔) やビルドサイトの 2 段目に、床の高さで放した物が吸い込まれないようにするため。
         /// </summary>
-        public PropSlot NearestOpenSlot(PropKind kind, Vector3 bottom, float maxFlat, float maxHeight)
+        public PropSlot NearestOpenSlot(PropKind kind, Vector3 bottom)
         {
             PropSlot best = null;
-            float bestDist = maxFlat * maxFlat;
+            float bestDist = float.MaxValue;
             foreach (PropSlot s in Slots)
             {
                 if (!s.Accepts(kind) || s.Full) continue;
-                Vector3 d = s.NextBottom - bottom;
-                if (Mathf.Abs(d.y) > maxHeight) continue;
+                s.Tolerance(out float maxFlat, out float above, out float below);
+                Vector3 d = bottom - s.NextBottom;     // 持ち物が置き場所よりどれだけ上か
+                if (d.y > above || -d.y > below) continue;
                 d.y = 0f;
                 float flat = d.sqrMagnitude;
-                if (flat < bestDist)
-                {
-                    bestDist = flat;
-                    best = s;
-                }
+                if (flat > maxFlat * maxFlat || flat >= bestDist) continue;
+                bestDist = flat;
+                best = s;
             }
             return best;
         }
@@ -200,6 +212,7 @@ namespace CoreSim
             prop.Body.collisionDetectionMode = CollisionDetectionMode.Continuous;
             prop.Body.linearDamping = 0.3f;
             prop.Body.angularDamping = 1.5f;
+            prop.Body.maxDepenetrationVelocity = 1.5f;
             prop.m_HomePos = bottom + Vector3.up * (size.y / 2f);
             prop.m_HomeRot = rotation;
             prop.m_HomeSlot = homeSlot;
@@ -213,6 +226,7 @@ namespace CoreSim
                 prop.m_Obstacle.size = Vector3.one;   // ローカル (スケール込みで実寸)
                 prop.m_Obstacle.carving = true;
                 prop.m_Obstacle.carveOnlyStationary = true;
+                prop.m_Obstacle.enabled = false;   // 開始位置のぶんは NavMesh を焼く時点で穴になっている
             }
             if (kind == PropKind.Block)
             {
@@ -234,7 +248,6 @@ namespace CoreSim
         public void SetRemote(bool remote)
         {
             Remote = remote;
-            if (m_Obstacle != null) m_Obstacle.enabled = !remote;
             ResetHome();
         }
 
@@ -250,6 +263,18 @@ namespace CoreSim
                 Slot = m_HomeSlot;
                 m_HomeSlot.Stack.Add(this);
             }
+            if (Col != null) Col.excludeLayers = 0;
+            UpdateObstacle();
+        }
+
+        /// <summary>
+        /// NavMesh の削り: 開始位置から動かしたブロックだけ。開始位置のぶんは焼いた NavMesh に穴があり、谷部に
+        /// 置いたブロックは高台の床の一部 (削ると橋が消えて CPU が渡れない)。
+        /// </summary>
+        private void UpdateObstacle()
+        {
+            if (m_Obstacle == null) return;
+            m_Obstacle.enabled = !Remote && !AtHome && (Slot == null || Slot.Kind != PlaceKind.Valley);
         }
 
         private void Detach()
@@ -280,6 +305,10 @@ namespace CoreSim
             transform.localPosition = Vector3.zero;
             transform.localRotation = Quaternion.identity;
             SetCollisionWith(by, true);
+            // 持っている間は他の機体に当たらない。kinematic の持ち物は質量無限大として押すので、
+            // 当たった機体が弾き飛ばされたり壁との間に挟まれて動けなくなる
+            if (Col != null) Col.excludeLayers = 1 << Tuning.LayerRobot;
+            UpdateObstacle();
         }
 
         /// <summary>ハンドから放して落とす。</summary>
@@ -294,7 +323,8 @@ namespace CoreSim
                 Body.linearVelocity = velocity;
                 Body.angularVelocity = Vector3.zero;
             }
-            if (by != null) StartCoroutine(RestoreCollision(by));
+            UpdateObstacle();
+            StartCoroutine(RestoreCollision(by));
         }
 
         /// <summary>置き場所に置く (ぴったり揃えて固定)。</summary>
@@ -307,13 +337,17 @@ namespace CoreSim
             transform.SetPositionAndRotation(bottom + Vector3.up * (Size.y / 2f), slot.Rotation);
             Slot = slot;
             slot.Stack.Add(this);
-            if (by != null) StartCoroutine(RestoreCollision(by));
+            UpdateObstacle();
+            StartCoroutine(RestoreCollision(by));
         }
 
+        /// <summary>放してから少し待って、機体との当たり判定を戻す (ハンドの中から出る時間)。</summary>
         private System.Collections.IEnumerator RestoreCollision(RobotAgent by)
         {
             yield return new WaitForSeconds(0.4f);
-            if (by != null && HeldBy != by) SetCollisionWith(by, false);
+            if (HeldBy != null) yield break;   // もう別の機体 (または同じ機体) が持っている
+            if (by != null) SetCollisionWith(by, false);
+            if (Col != null) Col.excludeLayers = 0;
         }
 
         private void SetCollisionWith(RobotAgent robot, bool ignore)

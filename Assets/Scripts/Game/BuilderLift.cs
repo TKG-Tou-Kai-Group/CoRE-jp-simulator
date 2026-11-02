@@ -18,8 +18,7 @@ namespace CoreSim
         public const float LiftSpeed = 0.45f;     // m/s
         public const float GrabRange = 0.22f;     // ハンド中心から物体中心まで (水平)。爪の間にほぼ収まっている必要がある
         public const float GrabHeightTolerance = 0.10f;   // ハンド中心と物体中心の高さの差
-        public const float PlaceRange = 0.15f;    // 持っている物体の底面から置き場所まで (水平)。半分は重なっている必要がある
-        public const float PlaceHeightTolerance = 0.12f;   // 底面と置き場所の高さの差。スポットの段の間隔 (0.275) より小さく
+        // 置ける範囲は置き場所ごと (PropSlot.Tolerance)。谷部だけ広い
 
         public RobotAgent Owner;
         public Transform Carriage;   // マストに沿って動く部分 (カメラも載る)
@@ -132,7 +131,7 @@ namespace CoreSim
             }
             else
             {
-                PlaceTarget = Registry.NearestOpenSlot(Held.Kind, Held.Bottom, PlaceRange, PlaceHeightTolerance);
+                PlaceTarget = Registry.NearestOpenSlot(Held.Kind, Held.Bottom);
                 if (PlaceTarget != null && tc != null && Owner != null) PlaceWarning = tc.PlaceWarning(Owner, Held, PlaceTarget);
             }
         }

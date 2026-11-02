@@ -3,6 +3,7 @@ using CoreSim.Rules;
 using Side = CoreSim.Rules.Side;
 using SkillKind = CoreSim.Rules.SkillKind;
 using UnityEngine;
+using UnityEngine.InputSystem;
 using UnityEngine.UI;
 
 namespace CoreSim
@@ -13,11 +14,31 @@ namespace CoreSim
     /// </summary>
     public sealed class HudView : MonoBehaviour
     {
+        private static readonly System.Text.StringBuilder s_Sb = new System.Text.StringBuilder();
+
+        /// <summary>CPU 全機の判断の中身を 1 行ずつ。</summary>
+        private static string BotDebugText(GameDirector director)
+        {
+            s_Sb.Clear();
+            s_Sb.AppendLine("[F9] CPU の状態");
+            foreach (RobotAgent r in director.Robots)
+            {
+                if (r == null || !(r.Source is IBotStatus bot)) continue;
+                Vector3 p = r.transform.position;
+                s_Sb.AppendLine($"{r.DisplayName} {r.KindName} ({p.x:F1}, {p.z:F1}) {(r.IsKnockedOut ? "KO " : "")}{bot.Status}");
+            }
+            return s_Sb.ToString();
+        }
+
         private Text m_Timer;
         private Text m_Phase;
         private Text m_Message;
         private Text m_OwnStatus;
         private Text m_BuilderHint;   // かんたんルールのビルダーの案内 (大会ルールでは TournamentHud が出す)
+        private Text m_BotDebug;      // F9: CPU の判断の中身
+        /// <summary>F9 で切り替える CPU のデバッグ表示 (全 HUD 共通)。</summary>
+        public static bool ShowBotDebug;
+        private static int s_ToggleFrame = -1;
         private RectTransform m_Reticle;
         private RectTransform m_CooldownFill;
         private RectTransform m_HpListBlue;   // 左上: 青 (偶数番)
@@ -54,6 +75,11 @@ namespace CoreSim
             // 下中央: ビルダーの案内 (かんたんルール)
             RectTransform hint = UiKit.Rect(root, "BuilderHint", new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 200f), new Vector2(1200f, 50f));
             hud.m_BuilderHint = UiKit.Label(hint, "Text", "", 30, new Color(1f, 0.85f, 0.4f));
+
+            // 左中段: CPU のデバッグ表示 (F9)
+            RectTransform dbg = UiKit.Rect(root, "BotDebug", new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(20f, 0f), new Vector2(900f, 400f));
+            dbg.pivot = new Vector2(0f, 0.5f);
+            hud.m_BotDebug = UiKit.Label(dbg, "Text", "", 18, new Color(0.8f, 1f, 0.8f), TextAnchor.MiddleLeft);
 
             // レティクル
             hud.m_Reticle = UiKit.Rect(root, "Reticle", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(60f, 60f));
@@ -146,6 +172,15 @@ namespace CoreSim
         public void Refresh(GameDirector director)
         {
             MatchState match = director.Match;
+            if (Keyboard.current != null && Keyboard.current.f9Key.wasPressedThisFrame && s_ToggleFrame != Time.frameCount)
+            {
+                s_ToggleFrame = Time.frameCount;
+                ShowBotDebug = !ShowBotDebug;
+            }
+            if (m_BotDebug != null)
+            {
+                m_BotDebug.text = ShowBotDebug ? BotDebugText(director) : "";
+            }
             if (Tournament != null && director.Tournament != null)
             {
                 var src = m_Self != null && director.Tournament != null ? director.PlayerInputFor(m_Self) : null;
