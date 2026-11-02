@@ -21,7 +21,7 @@ namespace CoreSim
         private string m_LastScanKey = "";
 
         private Text m_LobbyTitle, m_LobbyList, m_LobbyStatus;
-        private Button m_ModeButton, m_TimeButton, m_CpuButton, m_SpeedButton, m_StartButton, m_BestOfButton;
+        private Button m_ModeButton, m_TimeButton, m_CpuButton, m_SpeedButton, m_StartButton, m_BestOfButton, m_BuildersButton;
         private bool m_IsHost;
 
         public static NetworkMenuView Create(Transform parent, GameSettings settings, GameDirector director)
@@ -189,6 +189,7 @@ namespace CoreSim
             Vector2 size = new Vector2(800f, 60f);
             m_ModeButton = UiKit.Button(opts, "", size, () => { if (m_Director.Host != null) { m_Director.Host.Mode = (byte)((m_Director.Host.Mode + 1) % 3); } }, fontSize: 26);
             m_BestOfButton = UiKit.Button(opts, "", size, () => { if (m_Director.Host != null) { m_Director.Host.BestOf = (byte)(m_Director.Host.BestOf switch { 1 => 3, 3 => 5, _ => 1 }); } }, fontSize: 26);
+            m_BuildersButton = UiKit.Button(opts, "", size, () => { if (m_Director.Host != null) { m_Director.Host.Builders = (byte)((m_Director.Host.Builders + 1) % 3); } }, fontSize: 26);
             m_TimeButton = UiKit.Button(opts, "", size, () => { if (m_Director.Host != null) { m_Director.Host.MatchSeconds = (ushort)(m_Director.Host.MatchSeconds switch { 60 => 120, 120 => 180, _ => 60 }); } }, fontSize: 26);
             m_CpuButton = UiKit.Button(opts, "", size, () => { if (m_Director.Host != null) { m_Director.Host.CpuCount = (m_Director.Host.CpuCount + 1) % 4; } }, fontSize: 26);
             m_SpeedButton = UiKit.Button(opts, "", size, () =>
@@ -209,6 +210,7 @@ namespace CoreSim
             m_StartButton.gameObject.SetActive(isHost);
             m_ModeButton.interactable = isHost;
             m_BestOfButton.interactable = isHost;
+            m_BuildersButton.interactable = isHost;
             m_TimeButton.interactable = isHost;
             m_CpuButton.interactable = isHost;
             m_SpeedButton.interactable = isHost;
@@ -225,16 +227,25 @@ namespace CoreSim
                 return;
             }
             var sb = new System.Text.StringBuilder();
+            var numbers = new List<int>();
+            foreach (LobbySlot s in lobby.Slots) numbers.Add(s.Slot);
             foreach (LobbySlot s in lobby.Slots)
             {
                 string team = Rules.MatchState.TeamOf(s.Slot) == Rules.Team.Blue ? "Blue" : "Red";
                 string kind = s.Kind == SlotKind.Host ? "ホスト" : s.Kind == SlotKind.Cpu ? "CPU" : "プレイヤー";
-                string head = lobby.Mode == 2 && s.Slot <= 1 ? "  ★ヘッド" : "";
-                sb.Append($"{s.Slot + 1}.  {s.Name}    [{team}]  {kind}{head}\n");
+                string role = "";
+                if (lobby.Mode == 2)
+                {
+                    bool builder = GameDirector.KindForSlot(s.Slot, numbers, lobby.Builders) == Rules.RobotKind.Builder;
+                    role = builder ? "  ビルダー" : s.Slot <= 1 ? "  ★ヘッドアタッカー" : "  アタッカー";
+                }
+                sb.Append($"{s.Slot + 1}.  {s.Name}    [{team}]  {kind}{role}\n");
             }
             m_LobbyList.text = sb.ToString();
             UiKit.SetButtonLabel(m_ModeButton, lobby.Mode == 2 ? "形式: 大会ルール (CoRE-1 V27、偶数番 青 / 奇数番 赤)" : lobby.Mode == 1 ? "形式: チーム戦 (奇数番 Blue / 偶数番 Red)" : "形式: 個人戦 (全員が敵)");
             m_BestOfButton.gameObject.SetActive(lobby.Mode == 2);
+            m_BuildersButton.gameObject.SetActive(lobby.Mode == 2);
+            UiKit.SetButtonLabel(m_BuildersButton, $"各同盟のビルダー: {lobby.Builders} 台 (番号の大きい側から。アタッカーは 1 台以上)");
             m_TimeButton.gameObject.SetActive(lobby.Mode != 2);
             UiKit.SetButtonLabel(m_BestOfButton, lobby.BestOf switch { 3 => "試合: 準決勝形式 (3 ラウンド 2 本先取)", 5 => "試合: 決勝形式 (5 ラウンド 3 本先取)", _ => "試合: 予選形式 (1 ラウンド)" });
             UiKit.SetButtonLabel(m_TimeButton, $"試合時間: {lobby.MatchSeconds} 秒");

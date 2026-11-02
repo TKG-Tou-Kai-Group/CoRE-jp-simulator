@@ -67,6 +67,7 @@ namespace CoreSim.Net
         public ushort MatchSeconds;
         public byte Speed;           // 0 リアル / 1 ゲーム
         public byte BestOf = 1;      // 大会ルール: 1 / 3 / 5
+        public byte Builders;        // 各同盟のビルダーの数 (同盟の番号の大きい側から割り当てる)
         public List<LobbySlot> Slots = new List<LobbySlot>();
     }
 
@@ -75,6 +76,8 @@ namespace CoreSim.Net
         public uint Seq;
         public float MoveX, MoveY, Turn;
         public bool Fire, Turbo;
+        public float Lift;           // ビルダーの昇降 -1..1
+        public bool Grab;            // ビルダーのつかむ / 放す
     }
 
     public struct RobotState
@@ -93,6 +96,19 @@ namespace CoreSim.Net
         public float FrozenFor;      // ピットイン停止の残り秒
         public ushort MaxHp;
         public bool PitInGranted;    // ピットインが発動されている
+        // ---- ビルダー ----
+        public bool IsBuilder;
+        public float Lift;           // ハンドの高さ [m]
+        public ushort Held;          // 持っている物体の番号 (0 = 無し)
+    }
+
+    /// <summary>ブロック・コンテナの位置。番号は manifest の並び順で、ホストとクライアントで同じ。</summary>
+    public struct PropState
+    {
+        public ushort Id;
+        public bool Held, InSlot;
+        public float Px, Py, Pz;
+        public float Qx, Qy, Qz, Qw;
     }
 
     /// <summary>大会ルールの同盟の状態 (スナップショットに 2 つ入る)。</summary>
@@ -109,6 +125,9 @@ namespace CoreSim.Net
         public float SkillLockFor;
         public byte PitInCredits;
         public byte Wins;            // シリーズの勝ち数
+        public byte Sites;           // 獲得したビルドサイト (bit 0 = 1)
+        public uint Spots;           // 得点済みのスポット (bit 0 = 1)
+        public byte Containers;      // スポットに置かれたコンテナの数
     }
 
     public struct DiscState
@@ -126,6 +145,7 @@ namespace CoreSim.Net
         public byte OutcomeKind;     // CoreSim.Rules.OutcomeKind
         public sbyte OutcomeIndex;
         public List<RobotState> Robots = new List<RobotState>();
+        public List<PropState> Props = new List<PropState>();
         public List<DiscState> Discs = new List<DiscState>();
         // ---- 大会ルールのとき ----
         public bool Tournament;
@@ -224,7 +244,7 @@ namespace CoreSim.Net
 
     public static class NetCodec
     {
-        public const ushort ProtocolVersion = 3;
+        public const ushort ProtocolVersion = 4;
 
         /// <summary>名前に使える文字数。表示を崩す制御文字と改行は落とす。</summary>
         public const int MaxNameLength = 16;
@@ -269,7 +289,7 @@ namespace CoreSim.Net
         public static void WriteLobby(ByteWriter w, LobbyMessage m)
         {
             w.Reset(); w.Byte((byte)MsgType.Lobby);
-            w.Byte((byte)m.State); w.Byte(m.Mode); w.UShort(m.MatchSeconds); w.Byte(m.Speed); w.Byte(m.BestOf);
+            w.Byte((byte)m.State); w.Byte(m.Mode); w.UShort(m.MatchSeconds); w.Byte(m.Speed); w.Byte(m.BestOf); w.Byte(m.Builders);
             w.Byte((byte)Math.Min(m.Slots.Count, 255));
             foreach (LobbySlot s in m.Slots)
             {
@@ -281,7 +301,8 @@ namespace CoreSim.Net
         {
             w.Reset(); w.Byte((byte)MsgType.Input); w.UInt(token);
             w.UInt(m.Seq); w.Float(m.MoveX); w.Float(m.MoveY); w.Float(m.Turn);
-            w.Byte((byte)((m.Fire ? 1 : 0) | (m.Turbo ? 2 : 0)));
+            w.Byte((byte)((m.Fire ? 1 : 0) | (m.Turbo ? 2 : 0) | (m.Grab ? 4 : 0)));
+            w.Float(m.Lift);
         }
 
         public static void WriteSnapshot(ByteWriter w, SnapshotMessage m)
@@ -296,8 +317,9 @@ namespace CoreSim.Net
                 w.Float(r.Px); w.Float(r.Py); w.Float(r.Pz);
                 w.Float(r.Qx); w.Float(r.Qy); w.Float(r.Qz); w.Float(r.Qw);
                 w.UShort(r.Hp);
-                w.Byte((byte)((r.Ko ? 1 : 0) | (r.Turbo ? 2 : 0) | (r.IsHead ? 4 : 0) | (r.PitInGranted ? 8 : 0)));
+                w.Byte((byte)((r.Ko ? 1 : 0) | (r.Turbo ? 2 : 0) | (r.IsHead ? 4 : 0) | (r.PitInGranted ? 8 : 0) | (r.IsBuilder ? 16 : 0)));
                 w.UShort(r.Shots); w.UShort(r.Hits);
+                w.Float(r.Lift); w.UShort(r.Held);
                 if (m.Tournament)
                 {
                     w.Byte(r.Magazine); w.Float(r.ReviveIn); w.Float(r.InvincibleFor); w.Float(r.FrozenFor); w.UShort(r.MaxHp);
@@ -309,6 +331,14 @@ namespace CoreSim.Net
                 w.UShort(d.Id);
                 w.Float(d.Px); w.Float(d.Py); w.Float(d.Pz);
                 w.Float(d.Vx); w.Float(d.Vy); w.Float(d.Vz);
+            }
+            w.Byte((byte)Math.Min(m.Props.Count, 255));
+            foreach (PropState p in m.Props)
+            {
+                w.UShort(p.Id);
+                w.Byte((byte)((p.Held ? 1 : 0) | (p.InSlot ? 2 : 0)));
+                w.Float(p.Px); w.Float(p.Py); w.Float(p.Pz);
+                w.Float(p.Qx); w.Float(p.Qy); w.Float(p.Qz); w.Float(p.Qw);
             }
             if (m.Tournament)
             {
@@ -323,6 +353,7 @@ namespace CoreSim.Net
             w.Int(a.Vp); w.UShort(a.Rp); w.UShort(a.BaseHp); w.Bool(a.BaseDestroyed); w.UShort(a.Discs);
             w.Float(a.BoostFor); w.Byte(a.BarrierLevel); w.Float(a.BarrierFor); w.Float(a.SkillLockFor);
             w.Byte(a.PitInCredits); w.Byte(a.Wins);
+            w.Byte(a.Sites); w.UInt(a.Spots); w.Byte(a.Containers);
         }
 
         private static AllianceState ReadAlliance(ByteReader r)
@@ -332,6 +363,7 @@ namespace CoreSim.Net
                 Vp = r.Int(), Rp = r.UShort(), BaseHp = r.UShort(), BaseDestroyed = r.Bool(), Discs = r.UShort(),
                 BoostFor = r.Float(), BarrierLevel = r.Byte(), BarrierFor = r.Float(), SkillLockFor = r.Float(),
                 PitInCredits = r.Byte(), Wins = r.Byte(),
+                Sites = r.Byte(), Spots = r.UInt(), Containers = r.Byte(),
             };
         }
 
@@ -370,6 +402,7 @@ namespace CoreSim.Net
                 MatchSeconds = r.UShort(),
                 Speed = r.Byte(),
                 BestOf = r.Byte(),
+                Builders = r.Byte(),
             };
             int n = r.Byte();
             for (int i = 0; i < n; i++)
@@ -387,6 +420,8 @@ namespace CoreSim.Net
             byte f = r.Byte();
             m.Fire = (f & 1) != 0;
             m.Turbo = (f & 2) != 0;
+            m.Grab = (f & 4) != 0;
+            m.Lift = r.Float();
             return m;
         }
 
@@ -417,8 +452,11 @@ namespace CoreSim.Net
                 s.Turbo = (f & 2) != 0;
                 s.IsHead = (f & 4) != 0;
                 s.PitInGranted = (f & 8) != 0;
+                s.IsBuilder = (f & 16) != 0;
                 s.Shots = r.UShort();
                 s.Hits = r.UShort();
+                s.Lift = r.Float();
+                s.Held = r.UShort();
                 if (m.Tournament)
                 {
                     s.Magazine = r.Byte(); s.ReviveIn = r.Float(); s.InvincibleFor = r.Float(); s.FrozenFor = r.Float(); s.MaxHp = r.UShort();
@@ -434,6 +472,17 @@ namespace CoreSim.Net
                     Px = r.Float(), Py = r.Float(), Pz = r.Float(),
                     Vx = r.Float(), Vy = r.Float(), Vz = r.Float(),
                 });
+            }
+            int np = r.Byte();
+            for (int i = 0; i < np; i++)
+            {
+                var p = new PropState { Id = r.UShort() };
+                byte pf = r.Byte();
+                p.Held = (pf & 1) != 0;
+                p.InSlot = (pf & 2) != 0;
+                p.Px = r.Float(); p.Py = r.Float(); p.Pz = r.Float();
+                p.Qx = r.Float(); p.Qy = r.Float(); p.Qz = r.Float(); p.Qw = r.Float();
+                m.Props.Add(p);
             }
             if (m.Tournament)
             {

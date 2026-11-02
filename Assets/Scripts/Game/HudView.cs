@@ -17,6 +17,7 @@ namespace CoreSim
         private Text m_Phase;
         private Text m_Message;
         private Text m_OwnStatus;
+        private Text m_BuilderHint;   // かんたんルールのビルダーの案内 (大会ルールでは TournamentHud が出す)
         private RectTransform m_Reticle;
         private RectTransform m_CooldownFill;
         private RectTransform m_HpListBlue;   // 左上: 青 (偶数番)
@@ -49,6 +50,10 @@ namespace CoreSim
             // 中央: メッセージ (カウントダウン / 結果)
             RectTransform mid = UiKit.Rect(root, "Message", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, 120f), new Vector2(1200f, 200f));
             hud.m_Message = UiKit.Label(mid, "Text", "", 96, Color.white);
+
+            // 下中央: ビルダーの案内 (かんたんルール)
+            RectTransform hint = UiKit.Rect(root, "BuilderHint", new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 200f), new Vector2(1200f, 50f));
+            hud.m_BuilderHint = UiKit.Label(hint, "Text", "", 30, new Color(1f, 0.85f, 0.4f));
 
             // レティクル
             hud.m_Reticle = UiKit.Rect(root, "Reticle", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(60f, 60f));
@@ -123,7 +128,7 @@ namespace CoreSim
                 RectTransform row = UiKit.Rect(list, agent.name, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, y - 20f), new Vector2(0f, 40f));
                 UiKit.Image(row, "bg", new Color(0f, 0f, 0f, 0.45f), Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
                 UiKit.Image(row, "team", agent.TeamColor, new Vector2(0f, 0f), new Vector2(0f, 1f), new Vector2(4f, 4f), new Vector2(12f, -4f));
-                string shown = agent.IsHeadAttacker ? "★ " + agent.DisplayName : agent.DisplayName;
+                string shown = RowName(agent);
                 Text label = UiKit.Label(row, "name", shown, 22, agent == self ? new Color(1f, 0.95f, 0.5f) : Color.white, TextAnchor.MiddleLeft);
                 label.rectTransform.offsetMin = new Vector2(20f, 0f);
                 RectTransform bar = UiKit.Rect(row, "bar", new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0f, 7f), new Vector2(-24f, 8f));
@@ -135,6 +140,8 @@ namespace CoreSim
                 m_HpRows.Add((agent, label, fill, value));
             }
         }
+
+        private static string RowName(RobotAgent agent) => (agent.IsHeadAttacker ? "★ " : agent.IsBuilder ? "[B] " : "") + agent.DisplayName;
 
         public void Refresh(GameDirector director)
         {
@@ -182,7 +189,7 @@ namespace CoreSim
                 float ratio = row.agent.Health.Ratio;
                 row.fill.anchorMax = new Vector2(ratio, 1f);
                 row.value.text = row.agent.Health.Hp.ToString();
-                string name = (row.agent.IsHeadAttacker ? "★ " : "") + row.agent.DisplayName;
+                string name = RowName(row.agent);
                 row.label.text = row.agent.IsKnockedOut ? name + " (撃破)" : name;
             }
 
@@ -195,6 +202,11 @@ namespace CoreSim
                 m_OwnStatus.text = alive
                     ? (m_Self.Remote ? $"HP {m_Self.Health.Hp}{turbo}" : $"HP {m_Self.Health.Hp}   {speed:F1} m/s{turbo}")
                     : "KO";
+                if (m_BuilderHint != null)
+                {
+                    m_BuilderHint.text = alive && m_Self.IsBuilder && m_Self.Lift != null && Tournament == null && match.Phase == MatchPhase.Playing
+                        ? m_Self.Lift.Hint("Space / RB") : "";
+                }
                 float cd = !m_Self.Remote && m_Self.Shooter != null && m_Self.Shooter.Interval > 0f
                     ? 1f - m_Self.Shooter.Cooldown / m_Self.Shooter.Interval : 1f;
                 m_CooldownFill.anchorMax = new Vector2(Mathf.Clamp01(cd), 1f);

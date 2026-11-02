@@ -10,6 +10,22 @@ namespace CoreSim.Rules
         Blue = 1,
     }
 
+    /// <summary>出撃するロボットの種別 (2.1)。オートアタッカーとストライダーはモデル化しない。</summary>
+    public enum RobotKind : byte
+    {
+        Attacker = 0,
+        Builder = 1,
+    }
+
+    /// <summary>コンテナの出どころ (3.3 / 7.1)。回収できる条件が置き場ごとに違う。</summary>
+    public enum ContainerOrigin : byte
+    {
+        HolderA = 0,
+        HolderB = 1,
+        HolderC = 2,
+        Common = 3,
+    }
+
     /// <summary>総大将が RP で発動するスキル (ルールブック 8.1 表 8-1)。</summary>
     public enum SkillKind : byte
     {
@@ -33,11 +49,22 @@ namespace CoreSim.Rules
     }
 
     /// <summary>
-    /// CoRE-1 ルールブック V27.1.3 (2027 シーズン) の数値。アタッカーだけをモデル化しているので、
-    /// ビルダー・オートアタッカー・ストライダー・コンテナ・ブロックに関わる値は持たない。
+    /// CoRE-1 ルールブック V27.1.3 (2027 シーズン) の数値。アタッカーとビルダー、コンテナとブロックを
+    /// モデル化している。オートアタッカー・ストライダー (踏破) に関わる値は持たない。
     /// </summary>
     public sealed class TournamentConfig
     {
+        public int BuilderHp = 80;                // 6.3 表 6-2
+        public int SpotVp = 10;                   // 5.3 コンテナをスポットに 1 個
+        public int SpotRp = 30;                   // 5.4
+        public int RowVp = 50;                    // 5.3 1 つの段に 4 個続けて
+        public int RowRp = 100;                   // 5.4
+        public const int SpotCount = 18;          // 3.4 横 6 列 x 縦 3 段
+        public const int SpotColumns = 6;
+        public const int SiteCount = 4;           // 3.5
+        public const int BlocksPerSite = 2;       // 7.3 2 個積むと獲得
+        public float BuilderSite1Factor = 0.5f;   // 6.5 ビルドサイト 1: ビルダーの防御力 2 倍
+        public float BaseSite2Factor = 2f / 3f;   // 6.5 ビルドサイト 2: 陣地の防御力 1.5 倍
         public float RoundSeconds = 420f;         // 10.5 / 5.1 ラウンドは最長 7 分
         public int VpToWin = 500;                 // 5.1 VP 500 でラウンド終了
         public int AttackerHp = 60;               // 6.3 表 6-2
@@ -91,6 +118,8 @@ namespace CoreSim.Rules
     {
         public int Slot;
         public Side Side;
+        public RobotKind Kind;
+        public bool IsBuilder => Kind == RobotKind.Builder;
         public bool IsHead;
         public int MaxHp;
         public int Hp;
@@ -133,7 +162,19 @@ namespace CoreSim.Rules
         public float SkillLockUntil = -1f;
         public int DamageDealt;
         public int Fouls;
+        /// <summary>獲得したビルドサイト (bit 0 = サイト 1)。</summary>
+        public int SitesMask;
+        /// <summary>得点済みのスポット (bit 0 = スポット 1)。同じ番号は最初の 1 回だけ (7.1)。</summary>
+        public int SpotsMask;
+        /// <summary>4 個並びの得点を得た段 (bit 0 = 下段)。</summary>
+        public int RowsMask;
+        /// <summary>自同盟のスポットに今置かれているコンテナの数 (5.2 の同点判定)。</summary>
+        public int Containers;
         public readonly List<TournamentRobot> Robots = new List<TournamentRobot>();
+
+        public bool SiteAcquired(int index) => index >= 1 && index <= TournamentConfig.SiteCount && (SitesMask & (1 << (index - 1))) != 0;
+        public bool SpotScored(int index) => index >= 1 && index <= TournamentConfig.SpotCount && (SpotsMask & (1 << (index - 1))) != 0;
+        public int SitesAcquired { get { int n = 0; for (int i = 1; i <= TournamentConfig.SiteCount; i++) if (SiteAcquired(i)) n++; return n; } }
 
         public bool BoostActive(float now) => now < BoostUntil;
         public bool BarrierActive(float now) => now < BarrierUntil;
@@ -175,6 +216,8 @@ namespace CoreSim.Rules
         PitIn,
         RpBonus,
         RoundEnd,
+        ContainerPlaced,
+        SiteAcquired,
     }
 
     public struct TournamentEvent
@@ -225,15 +268,17 @@ namespace CoreSim.Rules
             return null;
         }
 
-        public TournamentRobot AddRobot(int slot, Side side, bool isHead)
+        public TournamentRobot AddRobot(int slot, Side side, bool isHead, RobotKind kind = RobotKind.Attacker)
         {
             if (Running) throw new InvalidOperationException("ラウンド中は機体を足せない");
+            if (isHead && kind != RobotKind.Attacker) throw new ArgumentException("ヘッドアタッカーはアタッカーから選ぶ (10.6)");
             var r = new TournamentRobot
             {
                 Slot = slot,
                 Side = side,
+                Kind = kind,
                 IsHead = isHead,
-                MaxHp = isHead ? Config.HeadAttackerHp : Config.AttackerHp,
+                MaxHp = isHead ? Config.HeadAttackerHp : kind == RobotKind.Builder ? Config.BuilderHp : Config.AttackerHp,
             };
             r.Hp = r.MaxHp;
             m_Robots.Add(r);
@@ -261,6 +306,8 @@ namespace CoreSim.Rules
                 a.BarrierLevel = 0;
                 a.DamageDealt = 0;
                 a.Fouls = 0;
+                a.SitesMask = a.SpotsMask = a.RowsMask = 0;
+                a.Containers = 0;
                 foreach (TournamentRobot r in a.Robots)
                 {
                     r.Hp = r.MaxHp;
@@ -270,7 +317,7 @@ namespace CoreSim.Rules
                     r.OnBunker = false;
                     r.HeadVpAwarded = 0;
                     r.PitInGranted = false;
-                    int take = Math.Min(Config.MagazineCapacity, a.Discs);
+                    int take = r.IsBuilder ? 0 : Math.Min(Config.MagazineCapacity, a.Discs);   // ビルダーは射出機構を持たない
                     r.Magazine = take;
                     a.Discs -= take;
                 }
@@ -334,7 +381,7 @@ namespace CoreSim.Rules
             }
         }
 
-        /// <summary>ラウンドを終え、勝敗を決める (5.2)。同点は与ダメージ合計、それでも同じなら引き分け。</summary>
+        /// <summary>ラウンドを終え、勝敗を決める (5.2)。同点はスポットのコンテナ数、次に与ダメージ合計、それでも同じなら引き分け。</summary>
         public void Finish(string reason)
         {
             if (Finished) return;
@@ -342,6 +389,7 @@ namespace CoreSim.Rules
             Running = false;
             EndReason = reason;
             if (Red.Vp != Blue.Vp) Winner = Red.Vp > Blue.Vp ? Side.Red : Side.Blue;
+            else if (Red.Containers != Blue.Containers) Winner = Red.Containers > Blue.Containers ? Side.Red : Side.Blue;
             else if (Red.DamageDealt != Blue.DamageDealt) Winner = Red.DamageDealt > Blue.DamageDealt ? Side.Red : Side.Blue;
             else Winner = null;
             Emit(TournamentEventKind.RoundEnd, Winner ?? Side.Red, -1, 0,
@@ -362,6 +410,7 @@ namespace CoreSim.Rules
                 value *= ta.BarrierLevel >= 2 ? 0.0 : 0.5;
             }
             if (target.OnBunker) value *= Config.BunkerDamageFactor;
+            if (target.IsBuilder && ta.SiteAcquired(1)) value *= Config.BuilderSite1Factor;   // 7.3 表 7-1
             return (int)Math.Round(value, MidpointRounding.AwayFromZero);
         }
 
@@ -454,6 +503,7 @@ namespace CoreSim.Rules
             double hp = highPanel ? Config.BaseHighHpDamage : Config.BaseLowHpDamage;
             if (attackers.BoostActive(Time)) hp *= 2.0;
             if (owner.BarrierActive(Time)) hp *= owner.BarrierLevel >= 2 ? 0.0 : 0.5;
+            if (owner.SiteAcquired(2)) hp *= Config.BaseSite2Factor;   // 7.3 表 7-1
             int hpLoss = Math.Min(owner.BaseHp, (int)Math.Round(hp, MidpointRounding.AwayFromZero));
             int rpLoss = owner.BarrierActive(Time) ? 0 : (highPanel ? Config.BaseHighRpDamage : Config.BaseLowRpDamage);
             owner.BaseHp -= hpLoss;
@@ -486,7 +536,7 @@ namespace CoreSim.Rules
         {
             if (!Running || Finished) return false;
             TournamentRobot r = Find(slot);
-            if (r == null || !r.CanAct(Time) || r.Magazine <= 0) return false;
+            if (r == null || r.IsBuilder || !r.CanAct(Time) || r.Magazine <= 0) return false;
             r.Magazine--;
             r.Shots++;
             return true;
@@ -612,6 +662,123 @@ namespace CoreSim.Rules
             TournamentRobot r = Find(slot);
             if (r == null || !Running) return;
             Foul(r.Side, slot, "進入禁止ゾーンに入った");
+        }
+
+        // ------------------------------------------------------------------ 運搬・建設 (第 7 章)
+
+        /// <summary>
+        /// コンテナを回収すると反則になる理由 (7.1 / 9.1)。無ければ null。
+        /// 物理的には持てるので、ゲームは持つ前の警告と、持った瞬間の反則に使う。
+        /// </summary>
+        public string ContainerPickupViolation(Side side, ContainerOrigin origin, Side? containerSide, bool onSpot, Side? spotSide)
+        {
+            if (onSpot) return "スポットに置かれたコンテナを取り出した";
+            if (containerSide.HasValue && containerSide.Value != side) return "相手同盟の RP コンテナ置き場からコンテナを動かした";
+            TournamentAlliance a = Of(side);
+            if (origin == ContainerOrigin.HolderB && !a.SiteAcquired(3)) return "ビルドサイト 3 を獲得する前に置き場 B のコンテナを回収した";
+            if (origin == ContainerOrigin.HolderC && !a.SiteAcquired(4)) return "ビルドサイト 4 を獲得する前に置き場 C のコンテナを回収した";
+            return null;
+        }
+
+        /// <summary>コンテナを持った (持ち上げた瞬間に 1 回)。反則なら VP が減る。戻り値は反則の理由 (無ければ null)。</summary>
+        public string PickUpContainer(int slot, ContainerOrigin origin, Side? containerSide, bool onSpot, Side? spotSide)
+        {
+            if (!Running || Finished) return null;
+            TournamentRobot r = Find(slot);
+            if (r == null) return null;
+            string why = ContainerPickupViolation(r.Side, origin, containerSide, onSpot, spotSide);
+            if (why != null) Foul(r.Side, slot, why);
+            if (onSpot && spotSide.HasValue)
+            {
+                TournamentAlliance owner = Of(spotSide.Value);
+                owner.Containers = Math.Max(0, owner.Containers - 1);
+            }
+            return why;
+        }
+
+        /// <summary>
+        /// コンテナをスポットに置いた (7.1)。自同盟のスポットなら VP +10 / RP +30 (同じ番号は最初の 1 回だけ)、
+        /// 1 つの段に 4 個続けて並んだら VP +50 / RP +100 (段ごとに 1 回)。相手のスポットなら反則。
+        /// </summary>
+        public bool PlaceContainerOnSpot(int slot, Side spotSide, int spotIndex)
+        {
+            if (!Running || Finished) return false;
+            TournamentRobot r = Find(slot);
+            if (r == null || spotIndex < 1 || spotIndex > TournamentConfig.SpotCount) return false;
+            if (spotSide != r.Side)
+            {
+                Foul(r.Side, slot, "相手同盟のスポットにコンテナを置いた");
+                return false;
+            }
+            TournamentAlliance a = Of(r.Side);
+            a.Containers++;
+            if (a.SpotScored(spotIndex))
+            {
+                Emit(TournamentEventKind.ContainerPlaced, r.Side, slot, 0, $"スポット {spotIndex} にコンテナ (得点済みの番号)");
+                return true;
+            }
+            a.SpotsMask |= 1 << (spotIndex - 1);
+            a.Vp += Config.SpotVp;
+            a.Rp += Config.SpotRp;
+            Emit(TournamentEventKind.ContainerPlaced, r.Side, slot, Config.SpotVp, $"スポット {spotIndex} にコンテナ (+{Config.SpotVp}VP +{Config.SpotRp}RP)");
+            int level = (spotIndex - 1) / TournamentConfig.SpotColumns;
+            if ((a.RowsMask & (1 << level)) == 0 && HasFourInARow(a.SpotsMask, level))
+            {
+                a.RowsMask |= 1 << level;
+                a.Vp += Config.RowVp;
+                a.Rp += Config.RowRp;
+                string name = level == 0 ? "下段" : level == 1 ? "中段" : "上段";
+                Emit(TournamentEventKind.ContainerPlaced, r.Side, slot, Config.RowVp, $"{name}に 4 個並んだ (+{Config.RowVp}VP +{Config.RowRp}RP)");
+            }
+            return true;
+        }
+
+        /// <summary>段 level (0 = 下段) に、得点済みのスポットが 4 個続いているか。3 列目と 4 列目の間をまたいでもよい。</summary>
+        public static bool HasFourInARow(int spotsMask, int level)
+        {
+            int row = (spotsMask >> (level * TournamentConfig.SpotColumns)) & ((1 << TournamentConfig.SpotColumns) - 1);
+            for (int start = 0; start + 4 <= TournamentConfig.SpotColumns; start++)
+            {
+                if ((row & (0xF << start)) == (0xF << start)) return true;
+            }
+            return false;
+        }
+
+        /// <summary>ブロックをビルドサイトに置いた (7.3)。count は置いた後の段数。2 個で獲得 (1 回だけ)。</summary>
+        public bool PlaceBlockOnSite(int slot, Side siteSide, int siteIndex, int count)
+        {
+            if (!Running || Finished) return false;
+            TournamentRobot r = Find(slot);
+            if (r == null || siteIndex < 1 || siteIndex > TournamentConfig.SiteCount) return false;
+            if (siteSide != r.Side) return false;   // 相手のビルドサイトに置いても効果はない (反則の規定も無い)
+            TournamentAlliance a = Of(r.Side);
+            if (count < TournamentConfig.BlocksPerSite || a.SiteAcquired(siteIndex)) return false;
+            a.SitesMask |= 1 << (siteIndex - 1);
+            string effect = siteIndex switch
+            {
+                1 => "ビルダーの防御力 2 倍",
+                2 => "陣地の防御力 1.5 倍",
+                3 => "置き場 B のコンテナを回収できる",
+                _ => "置き場 C のコンテナを回収できる",
+            };
+            Emit(TournamentEventKind.SiteAcquired, r.Side, slot, siteIndex, $"ビルドサイト {siteIndex} を獲得 ({effect})");
+            return true;
+        }
+
+        /// <summary>ビルドサイトに置かれたブロックを取り出した (9.1)。獲得した効果はそのまま (審判が判定済みのため)。</summary>
+        public void RemoveBlockFromSite(int slot)
+        {
+            TournamentRobot r = Find(slot);
+            if (r == null || !Running) return;
+            Foul(r.Side, slot, "ビルドサイトに置かれたブロックを取り出した");
+        }
+
+        /// <summary>ビルダー以外のロボットがブロックを保持した (7.2 / 9.1)。</summary>
+        public void NonBuilderHeldBlock(int slot)
+        {
+            TournamentRobot r = Find(slot);
+            if (r == null || !Running || r.IsBuilder) return;
+            Foul(r.Side, slot, "ビルダー以外のロボットがブロックを保持した");
         }
 
         public void Foul(Side side, int slot, string why)

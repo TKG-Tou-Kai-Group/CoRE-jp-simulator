@@ -24,3 +24,4 @@ crashlytics-build.properties
 /Release/
 # エディタの設定
 /.vscode/
+__pycache__/

@@ -83,5 +83,10 @@ namespace CoreSim
         public const int LayerDisc = 6;
         public const int LayerMinimapOnly = 7;
         public const int LayerRobot = 8;
+        public const int LayerProp = 9;              // ブロック・コンテナ
+
+        // ---- ビルダー (ルールブック 14.1: 開始後 1200 mm 角まで) ----
+        public const float BuilderMass = 26f;
+        public const float BuilderHandForward = 0.62f;   // 機体中心からハンド中心まで (前方)
     }
 }

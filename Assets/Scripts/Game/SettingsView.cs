@@ -35,11 +35,11 @@ namespace CoreSim
             view.Row(content, size, () => $"ひとりで対戦のときの CPU の数: {s.CpuCount} 台", () => s.CpuCount = s.CpuCount % 3 + 1);
             view.Row(content, size, () => $"試合時間: {s.MatchSeconds} 秒", () => s.MatchSeconds = s.MatchSeconds switch { 60 => 120, 120 => 180, _ => 60 });
 
-            view.Section(content, "大会ルール (CoRE-1 ルールブック V27.1.3、アタッカーのみ)");
-            view.Row(content, size, () => $"各同盟のアタッカー: {s.RobotsPerSide} 台 (自分以外は CPU)", () => s.RobotsPerSide = s.RobotsPerSide % 4 + 1);
+            view.Section(content, "大会ルール (CoRE-1 ルールブック V27.1.3、アタッカーとビルダー)");
+            view.Row(content, size, () => $"各同盟の機体: {s.RobotsPerSide} 台 (うちビルダー {s.EffectiveBuilders} 台。自分以外は CPU)", () => s.RobotsPerSide = s.RobotsPerSide % 4 + 1);
+            view.Row(content, size, () => $"各同盟のビルダー: {s.EffectiveBuilders} 台 (アタッカーは 1 台以上残す)", () => s.BuildersPerSide = (s.BuildersPerSide + 1) % 3);
             view.Row(content, size, () => $"試合: {MenuView.BestOfText(s.BestOf)}", () => s.BestOf = s.BestOf switch { 1 => 3, 3 => 5, _ => 1 });
-            view.Row(content, size, () => s.PlayerIsHead ? "自分: ヘッドアタッカー (HP 300、毎秒 5 回復、復活なし)" : "自分: アタッカー (HP 60、撃破から 30 秒で復活)",
-                     () => s.PlayerIsHead = !s.PlayerIsHead);
+            view.Row(content, size, () => MenuView.RoleText(s.Role), () => s.Role = (PlayerRole)(((int)s.Role + 1) % 3));
             view.Row(content, size, () => s.PlayerIsRed ? "自分の同盟: 赤 (奇数番)" : "自分の同盟: 青 (偶数番)", () => s.PlayerIsRed = !s.PlayerIsRed);
             view.Row(content, size, () => $"弾倉: {s.Magazine} 枚 (同盟のディスク 400 枚から装填。ルールに無い値)",
                      () => s.Magazine = s.Magazine switch { 30 => 50, 50 => 80, 80 => 120, _ => 30 });

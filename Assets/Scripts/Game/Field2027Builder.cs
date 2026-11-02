@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using CoreSim.Rules;
 using UnityEngine;
 
 namespace CoreSim
@@ -14,6 +15,11 @@ namespace CoreSim
     [Serializable] public class PolyZoneDef { public float[] xz; public float cx; public float cz; public float yawDeg; public float length; public float width; }
     [Serializable] public class SpawnPoint { public float x; public float y; public float z; public float yawDeg; }
     [Serializable] public class SpawnSet { public string side; public SpawnPoint[] points; }
+    /// <summary>ブロック・コンテナの開始位置 (x,y,z は底面の中心)。origin: zone / valley / holderA / holderB / holderC / common。</summary>
+    [Serializable] public class PropDef { public string kind; public string side; public float x; public float y; public float z; public float yawDeg; public string origin; public string color; }
+    /// <summary>置き場所: site (1..4、2 段) / spot (1..18) / port (1..2) / valley (1..2)。x,y,z は 1 段目の底面の中心。</summary>
+    [Serializable] public class SlotDef { public string kind; public string side; public float x; public float y; public float z; public float yawDeg; public int index; public int levels; public bool post; }
+    [Serializable] public class CarrierDef { public string side; public float x; public float z; public float width; public float depth; public float height; }
 
     [Serializable]
     public class FieldManifest
@@ -29,6 +35,9 @@ namespace CoreSim
         public PolyZoneDef[] noEntryZones;
         public ZoneDef[] startZones;
         public SpawnSet[] spawns;
+        public PropDef[] props;
+        public SlotDef[] slots;
+        public CarrierDef[] carriers;
     }
 
     /// <summary>読み込んだ 2027 フィールドの情報。位置の問い合わせに使う。</summary>
@@ -36,6 +45,8 @@ namespace CoreSim
     {
         public FieldManifest Manifest;
         public readonly List<BasePanel> Panels = new List<BasePanel>();
+        /// <summary>ブロック・コンテナと置き場所 (ビルダー用)。</summary>
+        public readonly PropRegistry Props = new PropRegistry();
 
         public static bool Inside(RectDef r, Vector3 p) => p.x >= r.xMin && p.x <= r.xMax && p.z >= r.zMin && p.z <= r.zMax;
 
@@ -203,7 +214,83 @@ namespace CoreSim
                      new Vector3(Mathf.Abs(outerX - innerX), h, 0.1f));
             }
             _ = none;
+            BuildSlots(data);
+            SpawnProps(root.transform, data, remote: false);
+            SpawnCarriers(root.transform, data);
             return data;
+        }
+
+        /// <summary>置き場所の一覧を manifest から作る。</summary>
+        private static void BuildSlots(Field2027Data data)
+        {
+            FieldManifest m = data.Manifest;
+            if (m.slots == null) return;
+            foreach (SlotDef d in m.slots)
+            {
+                PlaceKind kind = d.kind switch { "site" => PlaceKind.Site, "valley" => PlaceKind.Valley, "port" => PlaceKind.Port, _ => PlaceKind.Spot };
+                data.Props.Slots.Add(new PropSlot
+                {
+                    Kind = kind,
+                    Side = d.side,
+                    Index = d.index,
+                    Position = new Vector3(d.x, d.y, d.z),
+                    Rotation = Quaternion.Euler(0f, d.yawDeg, 0f),
+                    Levels = Mathf.Max(1, d.levels),
+                    Post = d.post,
+                });
+            }
+        }
+
+        /// <summary>
+        /// ブロック 12 個 x 2 + 高台の谷部 2 個 x 2、コンテナ 4+5+5 x 2 + 共通 4 を開始位置に置く。
+        /// 番号は manifest の並び順 (ホストとクライアントで同じ)。
+        /// </summary>
+        public static void SpawnProps(Transform parent, Field2027Data data, bool remote)
+        {
+            FieldManifest m = data.Manifest;
+            if (m.props == null) return;
+            var root = new GameObject("Props");
+            root.transform.SetParent(parent, false);
+            ushort id = 1;
+            foreach (PropDef d in m.props)
+            {
+                PropKind kind = d.kind == "block" ? PropKind.Block : PropKind.Container;
+                PropColor color = kind == PropKind.Block ? PropColor.None : d.color switch { "red" => PropColor.Red, "blue" => PropColor.Blue, _ => PropColor.Yellow };
+                ContainerOrigin origin = d.origin switch { "holderB" => ContainerOrigin.HolderB, "holderC" => ContainerOrigin.HolderC, "common" => ContainerOrigin.Common, _ => ContainerOrigin.HolderA };
+                PropSlot home = null;
+                if (d.origin == "valley")
+                {
+                    // 谷部のブロックは置き場所に置かれた状態で始まる
+                    var pos = new Vector3(d.x, d.y, d.z);
+                    float best = 0.2f * 0.2f;
+                    foreach (PropSlot s in data.Props.SlotsOf(PlaceKind.Valley, d.side))
+                    {
+                        float dist = (s.Position - pos).sqrMagnitude;
+                        if (dist < best) { best = dist; home = s; }
+                    }
+                }
+                FieldProp prop = FieldProp.Create(root.transform, id++, kind, color, origin, d.side,
+                                                  new Vector3(d.x, d.y, d.z), Quaternion.Euler(0f, d.yawDeg, 0f), home, remote);
+                data.Props.Add(prop);
+            }
+        }
+
+        /// <summary>ブロックキャリアー (7.4): キャスター付きの台。今は動かない台として置く (牽引は未実装)。</summary>
+        private static void SpawnCarriers(Transform parent, Field2027Data data)
+        {
+            FieldManifest m = data.Manifest;
+            if (m.carriers == null) return;
+            foreach (CarrierDef c in m.carriers)
+            {
+                var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                go.name = "BlockCarrier_" + c.side;
+                go.layer = Tuning.LayerProp;
+                go.transform.SetParent(parent, false);
+                go.transform.position = new Vector3(c.x, c.height / 2f + 0.005f, c.z);
+                go.transform.localScale = new Vector3(c.width, c.height, c.depth);
+                go.GetComponent<Renderer>().sharedMaterial = MaterialLibrary.Color(new Color(0.72f, 0.75f, 0.78f), 0.5f, 0.5f);
+                go.isStatic = true;   // 牽引機構が無いので動かさない (ネット対戦で同期もしない)。上にブロックは置ける
+            }
         }
 
         private static void Wall(GameObject root, string name, Vector3 center, Vector3 size)

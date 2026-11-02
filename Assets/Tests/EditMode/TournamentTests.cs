@@ -250,3 +250,126 @@ namespace CoreSim.Tests
         }
     }
 }
+
+namespace CoreSim.Tests
+{
+    public class BuilderRulesTests
+    {
+        private static TournamentRound Make(out TournamentRobot redBuilder, out TournamentRobot blueAttacker)
+        {
+            var round = new TournamentRound();
+            round.AddRobot(0, Side.Red, true);
+            redBuilder = round.AddRobot(2, Side.Red, false, RobotKind.Builder);
+            blueAttacker = round.AddRobot(1, Side.Blue, true);
+            round.AddRobot(3, Side.Blue, false, RobotKind.Builder);
+            round.Begin();
+            return round;
+        }
+
+        [Test]
+        public void BuilderHasEightyHpAndNoDiscs()
+        {
+            var round = Make(out var rb, out var ba);
+            Assert.AreEqual(80, rb.Hp);
+            Assert.AreEqual(0, rb.Magazine);
+            Assert.AreEqual(400 - round.Config.MagazineCapacity, round.Red.Discs);   // ヘッドの分だけ
+            Assert.IsFalse(round.TryFire(2));
+            Assert.Throws<System.ArgumentException>(() => new TournamentRound().AddRobot(5, Side.Red, true, RobotKind.Builder));
+        }
+
+        [Test]
+        public void SpotPlacementScoresOncePerSpotAndRowBonus()
+        {
+            var round = Make(out var rb, out var ba);
+            Assert.IsTrue(round.PlaceContainerOnSpot(2, Side.Red, 1));
+            Assert.AreEqual(10, round.Red.Vp);
+            Assert.AreEqual(130, round.Red.Rp);
+            Assert.IsTrue(round.PlaceContainerOnSpot(2, Side.Red, 1));   // 同じ番号は点にならない
+            Assert.AreEqual(10, round.Red.Vp);
+            Assert.AreEqual(2, round.Red.Containers);
+            round.PlaceContainerOnSpot(2, Side.Red, 2);
+            round.PlaceContainerOnSpot(2, Side.Red, 4);
+            Assert.AreEqual(30, round.Red.Vp);
+            round.PlaceContainerOnSpot(2, Side.Red, 3);                  // 1-2-3-4 で 4 個並び
+            Assert.AreEqual(40 + 50, round.Red.Vp);
+            Assert.AreEqual(100 + 4 * 30 + 100, round.Red.Rp);
+            round.PlaceContainerOnSpot(2, Side.Red, 5);                  // 5 個目は段の得点なし
+            Assert.AreEqual(100, round.Red.Vp);
+            // 中段は列をまたいでもよい: 9,10,11,12
+            foreach (int i in new[] { 9, 10, 11, 12 }) round.PlaceContainerOnSpot(2, Side.Red, i);
+            Assert.AreEqual(100 + 40 + 50, round.Red.Vp);
+        }
+
+        [Test]
+        public void EnemySpotIsFoulAndEnemyHolderIsFoul()
+        {
+            var round = Make(out var rb, out var ba);
+            Assert.IsFalse(round.PlaceContainerOnSpot(2, Side.Blue, 1));
+            Assert.AreEqual(-50, round.Red.Vp);
+            Assert.AreEqual(1, round.Red.Fouls);
+            Assert.IsNotNull(round.PickUpContainer(2, ContainerOrigin.HolderA, Side.Blue, false, null));
+            Assert.AreEqual(-100, round.Red.Vp);
+            Assert.IsNull(round.PickUpContainer(2, ContainerOrigin.Common, null, false, null));
+            Assert.IsNull(round.PickUpContainer(2, ContainerOrigin.HolderA, Side.Red, false, null));
+            Assert.AreEqual(-100, round.Red.Vp);
+        }
+
+        [Test]
+        public void HolderBAndCNeedSites3And4()
+        {
+            var round = Make(out var rb, out var ba);
+            Assert.IsNotNull(round.ContainerPickupViolation(Side.Red, ContainerOrigin.HolderB, Side.Red, false, null));
+            Assert.IsFalse(round.PlaceBlockOnSite(2, Side.Red, 3, 1));
+            Assert.IsTrue(round.PlaceBlockOnSite(2, Side.Red, 3, 2));
+            Assert.IsTrue(round.Red.SiteAcquired(3));
+            Assert.IsFalse(round.PlaceBlockOnSite(2, Side.Red, 3, 2));   // 2 回目は無い
+            Assert.IsNull(round.ContainerPickupViolation(Side.Red, ContainerOrigin.HolderB, Side.Red, false, null));
+            Assert.IsNotNull(round.ContainerPickupViolation(Side.Red, ContainerOrigin.HolderC, Side.Red, false, null));
+            Assert.IsFalse(round.PlaceBlockOnSite(2, Side.Blue, 4, 2));  // 相手のサイトには効果なし
+            Assert.AreEqual(0, round.Red.Vp);
+        }
+
+        [Test]
+        public void Site1HalvesBuilderDamageAndSite2ReducesBaseDamage()
+        {
+            var round = Make(out var rb, out var ba);
+            Assert.AreEqual(10, round.Hit(1, 2));
+            round.PlaceBlockOnSite(2, Side.Red, 1, 2);
+            Assert.AreEqual(5, round.Hit(1, 2));
+            Assert.AreEqual(65, rb.Hp);
+            round.Tick(181f);
+            Assert.AreEqual(10, round.HitBase(1, Side.Red, false));
+            round.PlaceBlockOnSite(2, Side.Red, 2, 2);
+            Assert.AreEqual(7, round.HitBase(1, Side.Red, false));    // 10 x 2/3 = 6.67 → 7
+        }
+
+        [Test]
+        public void TakingFromSpotOrSiteIsFoulAndAttackerHoldingBlockIsFoul()
+        {
+            var round = Make(out var rb, out var ba);
+            round.PlaceContainerOnSpot(2, Side.Red, 1);
+            Assert.IsNotNull(round.PickUpContainer(2, ContainerOrigin.HolderA, Side.Red, true, Side.Red));
+            Assert.AreEqual(0, round.Red.Containers);
+            Assert.AreEqual(10 - 50, round.Red.Vp);
+            round.RemoveBlockFromSite(2);
+            Assert.AreEqual(-90, round.Red.Vp);
+            round.NonBuilderHeldBlock(2);   // ビルダーなら反則なし
+            Assert.AreEqual(-90, round.Red.Vp);
+            round.NonBuilderHeldBlock(0);
+            Assert.AreEqual(-140, round.Red.Vp);
+        }
+
+        [Test]
+        public void ContainersBreakVpTie()
+        {
+            var round = Make(out var rb, out var ba);
+            round.PlaceContainerOnSpot(2, Side.Red, 1);
+            round.Hit(2, 1);   // 青の VP は 0 のまま; 赤 10 VP
+            round.PlaceContainerOnSpot(3, Side.Blue, 1);
+            Assert.AreEqual(round.Red.Vp, round.Blue.Vp);
+            round.PlaceContainerOnSpot(3, Side.Blue, 1);   // 得点なしだがコンテナ数 2
+            round.Finish("test");
+            Assert.AreEqual(Side.Blue, round.Winner);
+        }
+    }
+}

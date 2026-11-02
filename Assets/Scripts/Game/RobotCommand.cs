@@ -11,6 +11,10 @@ namespace CoreSim
         public float Turn;
         public bool Fire;
         public bool Turbo;
+        /// <summary>ビルダーの昇降。上 (+) / 下 (-)。-1..1。アタッカーは無視する。</summary>
+        public float Lift;
+        /// <summary>ビルダーのつかむ / 放す (押している間 true。立ち上がりで切り替える)。</summary>
+        public bool Grab;
 
         public static RobotCommand None => default;
     }

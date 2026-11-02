@@ -11,8 +11,9 @@ namespace CoreSim
     /// 割り当ては CoRE-jp-Unity-ROS2-packages の tools/control.html に合わせてある:
     /// 矢印 = 移動、A/D = 旋回、Space = 射撃、Shift = ターボ、V = 視点、Esc = メニュー。
     /// それに加えて WASD でも移動できる (W/S 前後、A/D は旋回のまま)。
-    /// ゲームパッドは左スティック = 移動、右スティック = 旋回、RB/RT = 射撃、
-    /// LB = ターボ、Y = 視点、Start = メニュー。
+    /// ビルダーは Space = つかむ / 放す、R / F (または PageUp / PageDown) = ハンドの上げ下げ。
+    /// ゲームパッドは左スティック = 移動、右スティック = 旋回、RB/RT = 射撃 (ビルダーはつかむ)、
+    /// LB = ターボ、Y = 視点、Start = メニュー、右スティック上下と十字キー上下 = ハンドの上げ下げ。
     /// </remarks>
     public sealed class PlayerCommandSource : ICommandSource
     {
@@ -128,6 +129,8 @@ namespace CoreSim
                     cmd.Turn += turn;
                     cmd.Fire |= kb.spaceKey.isPressed || kb.enterKey.isPressed;
                     cmd.Turbo |= kb.leftShiftKey.isPressed || kb.rightShiftKey.isPressed;
+                    if (kb.rKey.isPressed || kb.pageUpKey.isPressed) cmd.Lift += 1f;
+                    if (kb.fKey.isPressed || kb.pageDownKey.isPressed) cmd.Lift -= 1f;
                 }
             }
 
@@ -135,13 +138,19 @@ namespace CoreSim
             foreach (Gamepad pad in MyPads())
             {
                 cmd.Move += ApplyDeadzone(pad.leftStick.ReadValue());
-                cmd.Turn += ApplyDeadzone(pad.rightStick.ReadValue()).x;
+                Vector2 right = ApplyDeadzone(pad.rightStick.ReadValue());
+                cmd.Turn += right.x;
+                cmd.Lift += right.y;
+                if (pad.dpad.up.isPressed) cmd.Lift += 1f;
+                if (pad.dpad.down.isPressed) cmd.Lift -= 1f;
                 cmd.Fire |= pad.rightShoulder.isPressed || pad.rightTrigger.ReadValue() > 0.5f || pad.buttonSouth.isPressed;
                 cmd.Turbo |= pad.leftShoulder.isPressed || pad.leftTrigger.ReadValue() > 0.5f;
             }
 
             cmd.Move = Vector2.ClampMagnitude(cmd.Move, 1f);
             cmd.Turn = Mathf.Clamp(cmd.Turn, -1f, 1f);
+            cmd.Lift = Mathf.Clamp(cmd.Lift, -1f, 1f);
+            cmd.Grab = cmd.Fire;   // ビルダーは射撃ボタンでつかむ / 放す
             return cmd;
         }
 

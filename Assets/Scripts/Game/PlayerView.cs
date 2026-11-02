@@ -52,7 +52,7 @@ namespace CoreSim
             view.m_Minimap.orthographic = true;
             view.m_Minimap.orthographicSize = 7f;
             view.m_Minimap.targetTexture = view.m_MinimapTexture;
-            view.m_Minimap.cullingMask = (1 << 0) | (1 << Tuning.LayerRobot) | (1 << Tuning.LayerMinimapOnly);
+            view.m_Minimap.cullingMask = (1 << 0) | (1 << Tuning.LayerRobot) | (1 << Tuning.LayerMinimapOnly) | (1 << Tuning.LayerProp);
             view.m_Minimap.clearFlags = CameraClearFlags.SolidColor;
             view.m_Minimap.backgroundColor = new Color(0.1f, 0.1f, 0.12f);
             view.m_Minimap.depth = -10;

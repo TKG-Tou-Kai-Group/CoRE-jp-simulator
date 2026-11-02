@@ -22,6 +22,17 @@ namespace CoreSim
         Tournament,
     }
 
+    /// <summary>大会ルールで自分が操縦する機体。</summary>
+    public enum PlayerRole
+    {
+        /// <summary>ヘッドアタッカー (HP 300、毎秒 5 回復、復活なし)。</summary>
+        Head,
+        /// <summary>アタッカー (HP 60、30 秒で復活)。</summary>
+        Attacker,
+        /// <summary>ビルダー (HP 80、射出なし、ブロックとコンテナを運ぶ)。</summary>
+        Builder,
+    }
+
     public enum SpeedPreset
     {
         /// <summary>実機相当 (0.5 m/s、Turbo 1.0 m/s)。</summary>
@@ -47,13 +58,18 @@ namespace CoreSim
         public string NetPassword = "";     // 部屋の合言葉 (空なら無し)
         // ---- 大会ルール ----
         public Ruleset Rules = Ruleset.Casual;
-        public int RobotsPerSide = 2;       // 1..4 (予選はアタッカー + ビルダーで 4 台)
+        public int RobotsPerSide = 3;       // 1..4 (予選はアタッカー + ビルダーで 4 台)
+        public int BuildersPerSide = 1;     // 0..2 (RobotsPerSide のうちビルダーにする台数。アタッカーは 1 台以上)
         public int BestOf = 1;              // 1 / 3 / 5
-        public bool PlayerIsHead = true;    // 自分をヘッドアタッカーにする
+        public PlayerRole Role = PlayerRole.Head;   // 自分の機体
         public bool PlayerIsRed;            // false = 青同盟
         public int Magazine = 50;           // 弾倉の枚数。ルールには無い (機体設計次第)
 
         public float LinearScale => Speed == SpeedPreset.Game ? Tuning.GameSpeedScale : 1f;
+        /// <summary>互換用: 以前の「自分をヘッドアタッカーにする」。</summary>
+        public bool PlayerIsHead => Role == PlayerRole.Head;
+        /// <summary>実際のビルダーの数 (アタッカーが 1 台は残るように丸める)。</summary>
+        public int EffectiveBuilders => Mathf.Clamp(BuildersPerSide, 0, Mathf.Max(0, RobotsPerSide - 1));
         public float AccelScale => Speed == SpeedPreset.Game ? Tuning.GameAccelScale : 1f;
 
         public void Save()
@@ -72,7 +88,8 @@ namespace CoreSim
             PlayerPrefs.SetInt("rules", (int)Rules);
             PlayerPrefs.SetInt("perside", RobotsPerSide);
             PlayerPrefs.SetInt("bestof", BestOf);
-            PlayerPrefs.SetInt("head", PlayerIsHead ? 1 : 0);
+            PlayerPrefs.SetInt("role", (int)Role);
+            PlayerPrefs.SetInt("builders", BuildersPerSide);
             PlayerPrefs.SetInt("red", PlayerIsRed ? 1 : 0);
             PlayerPrefs.SetInt("mag", Magazine);
             PlayerPrefs.Save();
@@ -93,9 +110,10 @@ namespace CoreSim
             s.LastHostAddress = PlayerPrefs.GetString("host", "");
             s.NetPassword = PlayerPrefs.GetString("pass", "");
             s.Rules = (Ruleset)PlayerPrefs.GetInt("rules", 0);
-            s.RobotsPerSide = Mathf.Clamp(PlayerPrefs.GetInt("perside", 2), 1, 4);
+            s.RobotsPerSide = Mathf.Clamp(PlayerPrefs.GetInt("perside", 3), 1, 4);
+            s.BuildersPerSide = Mathf.Clamp(PlayerPrefs.GetInt("builders", 1), 0, 2);
             s.BestOf = PlayerPrefs.GetInt("bestof", 1);
-            s.PlayerIsHead = PlayerPrefs.GetInt("head", 1) != 0;
+            s.Role = (PlayerRole)Mathf.Clamp(PlayerPrefs.GetInt("role", PlayerPrefs.GetInt("head", 1) != 0 ? 0 : 1), 0, 2);
             s.PlayerIsRed = PlayerPrefs.GetInt("red", 0) != 0;
             s.Magazine = Mathf.Clamp(PlayerPrefs.GetInt("mag", 50), 10, 200);
             return s;

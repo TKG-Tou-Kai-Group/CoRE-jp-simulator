@@ -17,10 +17,12 @@ namespace CoreSim
         public bool Remote;               // クライアント側の写し (物理なし)
         public bool IsHeadAttacker;       // 大会ルール: ヘッドアタッカー
         public bool Frozen;               // 大会ルール: ピットイン中の完全停止
+        public RobotKind Kind;            // アタッカー / ビルダー
         public HealthModel Health;
         public ICommandSource Source;
         public ChassisDrive Drive;
-        public Shooter Shooter;
+        public Shooter Shooter;           // アタッカーのみ
+        public BuilderLift Lift;          // ビルダーのみ
         public Transform CameraMount;     // 一人称視点
         public Transform Marker;          // ミニマップ用
 
@@ -34,6 +36,8 @@ namespace CoreSim
         public bool IsKnockedOut => Health != null && !Health.IsAlive;
         public bool CanAct => !IsKnockedOut && !Frozen;
         public bool IsTurbo => Remote ? m_RemoteTurbo : LastCommand.Turbo;
+        public bool IsBuilder => Kind == RobotKind.Builder;
+        public string KindName => IsBuilder ? "ビルダー" : IsHeadAttacker ? "ヘッドアタッカー" : "アタッカー";
         public Color TeamColor => Team == Team.Blue ? Tuning.BlueTeam : Tuning.RedTeam;
 
         private Rigidbody m_Body;
@@ -63,6 +67,11 @@ namespace CoreSim
         public void ResetToStart()
         {
             Health.Reset();
+            if (Lift != null)
+            {
+                if (Lift.Held != null) Lift.Held.ResetHome();
+                Lift.Clear();
+            }
             m_RemoteKo = false;
             if (!m_Body.isKinematic)
             {
@@ -83,6 +92,12 @@ namespace CoreSim
             m_Body.interpolation = RigidbodyInterpolation.None;
             if (Drive != null) Drive.enabled = false;
             if (Shooter != null) Shooter.enabled = false;
+        }
+
+        /// <summary>クライアント側: ビルダーのハンドの高さと持ち物を写す。</summary>
+        public void ApplyRemoteLift(float height, FieldProp held)
+        {
+            if (Lift != null) Lift.ApplyRemote(height, held);
         }
 
         public void SetRemoteTarget(Vector3 position, Quaternion rotation)
@@ -191,9 +206,13 @@ namespace CoreSim
             // Turn 右回り → ROS wz は反時計が正なので符号反転。
             Drive.SetCommand(move.y * lin, -move.x * lin, -Mathf.Clamp(cmd.Turn, -1f, 1f) * ang);
 
-            if (cmd.Fire && CanFire && controllable && director.AcceptsDamage)
+            if (Shooter != null && cmd.Fire && CanFire && controllable && director.AcceptsDamage)
             {
                 Shooter.TryFire();
+            }
+            if (Lift != null)
+            {
+                Lift.Tick(cmd, controllable);
             }
         }
     }

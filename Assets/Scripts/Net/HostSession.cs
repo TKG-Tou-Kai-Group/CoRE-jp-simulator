@@ -38,6 +38,7 @@ namespace CoreSim.Net
         public ushort MatchSeconds = 120;
         public byte Speed = 1;
         public byte BestOf = 1;
+        public byte Builders = 1;    // 大会ルール: 各同盟のビルダーの数
         public int CpuCount;
         public int MaxSlots = 8;
 
@@ -287,7 +288,7 @@ namespace CoreSim.Net
         /// <summary>現在のロビー。スロット 0 はホスト、クライアントは参加順、CPU はその後ろ。</summary>
         public LobbyMessage BuildLobby()
         {
-            var m = new LobbyMessage { State = State, Mode = Mode, MatchSeconds = MatchSeconds, Speed = Speed, BestOf = BestOf };
+            var m = new LobbyMessage { State = State, Mode = Mode, MatchSeconds = MatchSeconds, Speed = Speed, BestOf = BestOf, Builders = Builders };
             m.Slots.Add(new LobbySlot { Slot = 0, Kind = SlotKind.Host, Name = HostName });
             foreach (Client c in m_Clients)
             {

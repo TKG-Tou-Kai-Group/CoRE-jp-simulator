@@ -31,6 +31,8 @@ namespace CoreSim
                 Turn = Mathf.Clamp(input.Turn, -1f, 1f),
                 Fire = input.Fire,
                 Turbo = input.Turbo,
+                Lift = Mathf.Clamp(input.Lift, -1f, 1f),
+                Grab = input.Grab,
             };
         }
     }

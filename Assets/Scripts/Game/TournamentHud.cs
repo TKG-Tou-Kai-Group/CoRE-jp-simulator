@@ -92,7 +92,7 @@ namespace CoreSim
 
             // 中央下: 撃破中の案内
             RectTransform center = UiKit.Rect(root, "TCenter", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, -40f), new Vector2(1000f, 80f));
-            hud.m_Center = UiKit.Label(center, "Text", "", 40, new Color(1f, 0.85f, 0.4f));
+            hud.m_Center = UiKit.Label(center, "Text", "", 32, new Color(1f, 0.85f, 0.4f));
             return hud;
         }
 
@@ -118,10 +118,20 @@ namespace CoreSim
             m_BaseBlue.text = view.Blue.BaseDestroyed ? "青陣地 撃破" : $"青陣地 HP {view.Blue.BaseHp}{Effects(view.Blue)}";
 
             AllianceState mine = view.Of(m_Side);
-            m_Rp.text = $"RP {mine.Rp}   同盟のディスク {mine.Discs} 枚   ピットイン発動中 {mine.PitInCredits} 台";
+            m_Rp.text = $"RP {mine.Rp}   ディスク {mine.Discs} 枚   ピットイン {mine.PitInCredits} 台   サイト {SitesText(mine.Sites)}   コンテナ {mine.Containers}";
             if (self != null && view.Robots.TryGetValue(self.Index, out RobotExtra me))
             {
-                m_Ammo.text = $"{(me.IsHead ? "ヘッド" : "アタッカー")}  HP {me.Hp}/{me.MaxHp}   残弾 {me.Magazine} 枚";
+                bool builder = me.IsBuilder || self.IsBuilder;
+                if (builder)
+                {
+                    string held = self.Lift != null && self.Lift.Held != null ? self.Lift.Held.Label : "なし";
+                    float h = self.Lift != null ? self.Lift.Height : 0f;
+                    m_Ammo.text = $"ビルダー  HP {me.Hp}/{me.MaxHp}   ハンド {h:F2} m   持ち物: {held}";
+                }
+                else
+                {
+                    m_Ammo.text = $"{(me.IsHead ? "ヘッド" : "アタッカー")}  HP {me.Hp}/{me.MaxHp}   残弾 {me.Magazine} 枚";
+                }
                 if (me.Destroyed)
                 {
                     m_Center.text = me.ReviveIn >= 0f ? $"撃破されました。復活まで {Mathf.CeilToInt(me.ReviveIn)} 秒" : "撃破されました (このラウンドは復活なし)";
@@ -129,6 +139,10 @@ namespace CoreSim
                 else if (me.FrozenFor > 0f)
                 {
                     m_Center.text = $"補給中 (完全停止) あと {Mathf.CeilToInt(me.FrozenFor)} 秒";
+                }
+                else if (builder)
+                {
+                    m_Center.text = self.Lift != null ? self.Lift.Hint("Space / RB") : "";
                 }
                 else if (me.Magazine == 0)
                 {
@@ -158,6 +172,13 @@ namespace CoreSim
                 m_SkillLabels[i].color = ok ? Color.white : new Color(1f, 1f, 1f, 0.45f);
             }
             m_Log.text = string.Join("\n", view.Log);
+        }
+
+        private static string SitesText(byte mask)
+        {
+            var sb = new System.Text.StringBuilder();
+            for (int i = 0; i < TournamentConfig.SiteCount; i++) sb.Append((mask & (1 << i)) != 0 ? "■" : "□");
+            return sb.ToString();
         }
 
         private static string Effects(AllianceState a)

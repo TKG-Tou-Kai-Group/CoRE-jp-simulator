@@ -24,6 +24,11 @@ namespace CoreSim
                    new Color(0.25f, 0.6f, 0.9f, 0.7f), "<Gamepad>/leftShoulder");
             Button(root, "Map", "マップ", new Vector2(0f, 0f), new Vector2(430f, 180f), 110f,
                    new Color(0.4f, 0.4f, 0.45f, 0.7f), "<Gamepad>/buttonNorth");
+            // ビルダー用: ハンドの上げ下げ (十字キーの上下として読まれる)。アタッカーでは何も起きない
+            Button(root, "LiftUp", "▲ 上げ", new Vector2(1f, 0f), new Vector2(-660f, 400f), 110f,
+                   new Color(0.35f, 0.5f, 0.4f, 0.65f), "<Gamepad>/dpad/up");
+            Button(root, "LiftDown", "▼ 下げ", new Vector2(1f, 0f), new Vector2(-660f, 270f), 110f,
+                   new Color(0.35f, 0.5f, 0.4f, 0.65f), "<Gamepad>/dpad/down");
             return root;
         }
 

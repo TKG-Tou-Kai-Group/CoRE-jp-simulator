@@ -10,9 +10,11 @@ namespace CoreSim
     /// </summary>
     public static class RobotFactory
     {
-        public static RobotAgent Create(int index, Pose startPose, GameSettings settings)
+        /// <param name="kind">アタッカー (射出機構) かビルダー (昇降ハンド)。走行部と装甲板は共通。</param>
+        public static RobotAgent Create(int index, Pose startPose, GameSettings settings, RobotKind kind = RobotKind.Attacker)
         {
             Team team = MatchState.TeamOf(index);
+            bool builder = kind == RobotKind.Builder;
             Color teamColor = team == Team.Blue ? Tuning.BlueTeam : Tuning.RedTeam;
 
             var root = new GameObject($"Robot_{index + 1}");
@@ -20,7 +22,7 @@ namespace CoreSim
             root.transform.SetPositionAndRotation(startPose.position, startPose.rotation);
 
             var body = root.AddComponent<Rigidbody>();
-            body.mass = Tuning.RobotMass;
+            body.mass = builder ? Tuning.BuilderMass : Tuning.RobotMass;
             body.interpolation = RigidbodyInterpolation.Interpolate;
             body.collisionDetectionMode = CollisionDetectionMode.Continuous;
             body.angularDamping = 0.5f;
@@ -59,33 +61,86 @@ namespace CoreSim
             Box(root, "bumper_left", Tuning.RosToUnity(0f, 0.45f, 0.10f), Quaternion.identity, new Vector3(0.01f, 0.10f, 0.9f), white, true);
             Box(root, "bumper_right", Tuning.RosToUnity(0f, -0.45f, 0.10f), Quaternion.identity, new Vector3(0.01f, 0.10f, 0.9f), white, true);
 
-            // ---- シュータ: base_link の +0.3512、仰角 3.4 度 (shooter.urdf.xacro) ----
-            var shooterRoot = new GameObject("shooter");
-            shooterRoot.transform.SetParent(root.transform, false);
-            shooterRoot.transform.localPosition = Tuning.RosToUnity(0f, 0f, Tuning.ShooterMountHeight);
-            shooterRoot.transform.localRotation = Quaternion.Euler(-Tuning.MuzzleElevationDeg, 0f, 0f);
-            Material shooterMat = MaterialLibrary.Color(new Color(0.55f, 0.6f, 0.68f), 0.5f, 0.3f);
-            Box(shooterRoot, "shooter_base", Tuning.RosToUnity(0.05f, 0f, 0f), Quaternion.identity, new Vector3(0.18f, 0.08f, 0.3f), shooterMat, true);
-            Box(shooterRoot, "shooter_barrel", Tuning.RosToUnity(0.04f, 0f, 0.085f), Quaternion.identity, new Vector3(0.18f, 0.04f, 0.32f), shooterMat, false);
-            Box(shooterRoot, "shooter_wall_l", Tuning.RosToUnity(0.0f, 0.1015f, 0.04f), Quaternion.identity, new Vector3(0.02f, 0.06f, 0.22f), shooterMat, false);
-            Box(shooterRoot, "shooter_wall_r", Tuning.RosToUnity(0.0f, -0.1015f, 0.04f), Quaternion.identity, new Vector3(0.02f, 0.06f, 0.22f), shooterMat, false);
+            Transform muzzle = null;
             var rollers = new List<Transform>();
-            float rollerY = Tuning.DiscRadius + 0.04f - 0.002f;
-            foreach (float side in new[] { rollerY, -rollerY })
+            BuilderLift lift = null;
+            Transform cameraMount;
+            if (!builder)
             {
-                GameObject roller = Visuals.Create("roller", PrimitiveType.Cylinder, shooterRoot.transform,
-                    Tuning.RosToUnity(0.15f, side, 0.055f), Quaternion.identity, new Vector3(0.08f, 0.015f, 0.08f), dark);
-                rollers.Add(roller.transform);
+                // ---- シュータ: base_link の +0.3512、仰角 3.4 度 (shooter.urdf.xacro) ----
+                var shooterRoot = new GameObject("shooter");
+                shooterRoot.transform.SetParent(root.transform, false);
+                shooterRoot.transform.localPosition = Tuning.RosToUnity(0f, 0f, Tuning.ShooterMountHeight);
+                shooterRoot.transform.localRotation = Quaternion.Euler(-Tuning.MuzzleElevationDeg, 0f, 0f);
+                Material shooterMat = MaterialLibrary.Color(new Color(0.55f, 0.6f, 0.68f), 0.5f, 0.3f);
+                Box(shooterRoot, "shooter_base", Tuning.RosToUnity(0.05f, 0f, 0f), Quaternion.identity, new Vector3(0.18f, 0.08f, 0.3f), shooterMat, true);
+                Box(shooterRoot, "shooter_barrel", Tuning.RosToUnity(0.04f, 0f, 0.085f), Quaternion.identity, new Vector3(0.18f, 0.04f, 0.32f), shooterMat, false);
+                Box(shooterRoot, "shooter_wall_l", Tuning.RosToUnity(0.0f, 0.1015f, 0.04f), Quaternion.identity, new Vector3(0.02f, 0.06f, 0.22f), shooterMat, false);
+                Box(shooterRoot, "shooter_wall_r", Tuning.RosToUnity(0.0f, -0.1015f, 0.04f), Quaternion.identity, new Vector3(0.02f, 0.06f, 0.22f), shooterMat, false);
+                float rollerY = Tuning.DiscRadius + 0.04f - 0.002f;
+                foreach (float side in new[] { rollerY, -rollerY })
+                {
+                    GameObject roller = Visuals.Create("roller", PrimitiveType.Cylinder, shooterRoot.transform,
+                        Tuning.RosToUnity(0.15f, side, 0.055f), Quaternion.identity, new Vector3(0.08f, 0.015f, 0.08f), dark);
+                    rollers.Add(roller.transform);
+                }
+                // 装填用のポール 4 本 (弾倉の名残だが機体のシルエットになる)
+                foreach (var (px, py) in new[] { (0.07778f, 0.07778f), (-0.07778f, 0.07778f), (-0.07778f, -0.07778f), (0.07778f, -0.07778f) })
+                {
+                    Visuals.Create("pole", PrimitiveType.Cylinder, shooterRoot.transform,
+                                   Tuning.RosToUnity(px, py, 0.315f), Quaternion.identity, new Vector3(0.02f, 0.25f, 0.02f), gray);
+                }
+                var muzzleGo = new GameObject("muzzle");
+                muzzleGo.transform.SetParent(shooterRoot.transform, false);
+                muzzleGo.transform.localPosition = Tuning.RosToUnity(0.21f, 0f, 0.055f);
+                muzzle = muzzleGo.transform;
+
+                // カメラ取り付け点 (camera_link: 0.45, 0, 0.28)
+                var cam = new GameObject("camera_mount");
+                cam.transform.SetParent(root.transform, false);
+                cam.transform.localPosition = Tuning.RosToUnity(0.45f, 0f, 0.28f);
+                cameraMount = cam.transform;
             }
-            // 装填用のポール 4 本 (弾倉の名残だが機体のシルエットになる)
-            foreach (var (px, py) in new[] { (0.07778f, 0.07778f), (-0.07778f, 0.07778f), (-0.07778f, -0.07778f), (0.07778f, -0.07778f) })
+            else
             {
-                Visuals.Create("pole", PrimitiveType.Cylinder, shooterRoot.transform,
-                               Tuning.RosToUnity(px, py, 0.315f), Quaternion.identity, new Vector3(0.02f, 0.25f, 0.02f), gray);
+                // ---- ビルダー: 前方のマスト 2 本 + 昇降キャリッジ (フォーク + ハンド) ----
+                // 開始時 800x800x1000 以内、開始後 1200 mm 角まで (14.1)。ハンドは機体中心の 0.62 m 前 (ブロックを
+                // 持っても全長 1.22 m)。マストの高さ 1.1 m。
+                Material mastMat = MaterialLibrary.Color(new Color(0.3f, 0.32f, 0.36f), 0.5f, 0.6f);
+                Material handMat = MaterialLibrary.Color(new Color(0.9f, 0.6f, 0.15f), 0.4f, 0.2f);
+                foreach (float side in new[] { 0.14f, -0.14f })
+                {
+                    Box(root, "mast", Tuning.RosToUnity(0.33f, side, 0.58f), Quaternion.identity, new Vector3(0.04f, 1.04f, 0.05f), mastMat, true);
+                }
+                Box(root, "mast_top", Tuning.RosToUnity(0.33f, 0f, 1.11f), Quaternion.identity, new Vector3(0.36f, 0.04f, 0.05f), mastMat, false);
+                var carriage = new GameObject("carriage");
+                carriage.transform.SetParent(root.transform, false);
+                carriage.transform.localPosition = Tuning.RosToUnity(0.36f, 0f, 0.0f);   // y はリフトが決める
+                // キャリッジ本体 (マストの前面を滑る板) とフォーク 2 本、ハンドの爪 2 枚
+                Visuals.Create("carriage_plate", PrimitiveType.Cube, carriage.transform, Tuning.RosToUnity(0.0f, 0f, 0f), Quaternion.identity,
+                               new Vector3(0.4f, 0.16f, 0.03f), mastMat);
+                foreach (float side in new[] { 0.10f, -0.10f })
+                {
+                    Visuals.Create("fork", PrimitiveType.Cube, carriage.transform, Tuning.RosToUnity(0.15f, side, -0.095f), Quaternion.identity,
+                                   new Vector3(0.03f, 0.02f, 0.3f), handMat);
+                }
+                foreach (float side in new[] { 0.19f, -0.19f })
+                {
+                    Visuals.Create("finger", PrimitiveType.Cube, carriage.transform, Tuning.RosToUnity(0.26f, side, 0f), Quaternion.identity,
+                                   new Vector3(0.02f, 0.14f, 0.22f), handMat);
+                }
+                var hand = new GameObject("hand");
+                hand.transform.SetParent(carriage.transform, false);
+                hand.transform.localPosition = Tuning.RosToUnity(Tuning.BuilderHandForward - 0.36f, 0f, 0f);
+                // 操縦カメラはキャリッジに載せる (ハンドと荷物が常に見える)。少し下を向ける
+                var cam = new GameObject("camera_mount");
+                cam.transform.SetParent(carriage.transform, false);
+                cam.transform.localPosition = Tuning.RosToUnity(-0.06f, 0f, 0.26f);
+                cam.transform.localRotation = Quaternion.Euler(22f, 0f, 0f);
+                cameraMount = cam.transform;
+                lift = root.AddComponent<BuilderLift>();
+                lift.Setup(null, carriage.transform, hand.transform, BuilderLift.MinHeight);   // 機体の原点は床の高さ
             }
-            var muzzle = new GameObject("muzzle");
-            muzzle.transform.SetParent(shooterRoot.transform, false);
-            muzzle.transform.localPosition = Tuning.RosToUnity(0.21f, 0f, 0.055f);
 
             // ---- 装甲板 4 枚: (±0.35, ±0.35, 0.45)、外向き 45 度。板は 0.15 x 0.15 ----
             var plates = new ArmorPlate[4];
@@ -136,18 +191,13 @@ namespace CoreSim
                 label.GetComponent<MeshRenderer>().sharedMaterial = UiKit.Font.material;
             }
 
-            // ---- カメラ取り付け点 (camera_link: 0.45, 0, 0.28) ----
-            var cam = new GameObject("camera_mount");
-            cam.transform.SetParent(root.transform, false);
-            cam.transform.localPosition = Tuning.RosToUnity(0.45f, 0f, 0.28f);
-
             // ---- ミニマップ用マーカー (MinimapOnly レイヤ、3 m 上空に浮かぶ矢印) ----
             GameObject marker = Visuals.Create("minimap_marker", PrimitiveType.Cube, root.transform,
                 new Vector3(0f, 3f, 0.1f), Quaternion.identity, new Vector3(0.7f, 0.05f, 1.1f),
                 MaterialLibrary.Unlit(teamColor), Tuning.LayerMinimapOnly);
             Visuals.Create("nose", PrimitiveType.Cube, marker.transform,
-                new Vector3(0f, 0f, 0.6f), Quaternion.identity, new Vector3(0.5f, 1f, 0.3f),
-                MaterialLibrary.Unlit(Color.white), Tuning.LayerMinimapOnly);
+                new Vector3(0f, 0f, 0.6f), Quaternion.identity, builder ? new Vector3(0.9f, 1f, 0.25f) : new Vector3(0.5f, 1f, 0.3f),
+                MaterialLibrary.Unlit(builder ? new Color(1f, 0.8f, 0.3f) : Color.white), Tuning.LayerMinimapOnly);
 
             // ---- コンポーネントの配線 ----
             var drive = root.AddComponent<ChassisDrive>();
@@ -156,21 +206,28 @@ namespace CoreSim
             drive.maxLinearAcceleration = Tuning.RealLinearAccel * settings.AccelScale;
             drive.maxAngularAcceleration = Tuning.RealAngularAccel * settings.AccelScale;
 
-            var shooter = root.AddComponent<Shooter>();
-            shooter.Muzzle = muzzle.transform;
-            shooter.Rollers = rollers.ToArray();
+            Shooter shooter = null;
+            if (!builder)
+            {
+                shooter = root.AddComponent<Shooter>();
+                shooter.Muzzle = muzzle;
+                shooter.Rollers = rollers.ToArray();
+            }
 
             agent.Index = index;
             agent.Team = team;
+            agent.Kind = kind;
             agent.Drive = drive;
             agent.Shooter = shooter;
-            agent.CameraMount = cam.transform;
+            agent.Lift = lift;
+            if (lift != null) lift.Owner = agent;
+            agent.CameraMount = cameraMount;
             agent.Marker = marker.transform;
             agent.NormalLinear = Tuning.RealNormalLinear * settings.LinearScale;
             agent.NormalAngular = Tuning.RealNormalAngular * settings.LinearScale;
             agent.TurboLinear = Tuning.RealTurboLinear * settings.LinearScale;
             agent.TurboAngular = Tuning.RealTurboAngular * settings.LinearScale;
-            shooter.Setup(agent);
+            if (shooter != null) shooter.Setup(agent);
             agent.Setup(startPose, plates);
 
             // 重心を低めに置いて、バンパー同士の押し合いで転ばないようにする。

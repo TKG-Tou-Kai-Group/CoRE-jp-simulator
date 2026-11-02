@@ -113,6 +113,7 @@ namespace CoreSim
             m_InMatch = false;
             Match.Stop();
             Tournament = null;
+            ArenaBuilder.Field2027?.Props.SetRemote(false);
             DestroyMenus();
             EnsureMenuCamera();
             m_Menu = MenuView.Create(m_Canvas.transform, Settings, StartMatch, OpenNetworkMenu, OpenSettings, () => Application.Quit());
@@ -359,7 +360,7 @@ namespace CoreSim
                     {
                         m_NextInputTime = now + InputInterval;
                         RobotCommand cmd = m_ClientInput.Read();
-                        m_Client.SendInput(cmd.Move.x, cmd.Move.y, cmd.Turn, cmd.Fire, cmd.Turbo);
+                        m_Client.SendInput(cmd.Move.x, cmd.Move.y, cmd.Turn, cmd.Fire, cmd.Turbo, cmd.Lift, cmd.Grab);
                     }
                     if (m_ClientInput != null && Tournament != null)
                     {
@@ -505,6 +506,7 @@ namespace CoreSim
 
             var slots = new List<(byte slot, SlotKind kind, string name, bool passive)>();
             int bestOf = Settings.BestOf;
+            int buildersPerSide = 0;
             if (Role == NetRole.Host)
             {
                 LobbyMessage lobby = m_Host.BuildLobby();
@@ -513,6 +515,7 @@ namespace CoreSim
                     slots.Add((s.Slot, s.Kind, s.Name, false));
                 }
                 bestOf = m_Host.BestOf;
+                buildersPerSide = tournament ? m_Host.Builders : 0;
                 Match = new MatchState
                 {
                     Mode = m_Host.Mode == 1 ? MatchMode.Team : MatchMode.Individual,
@@ -526,16 +529,24 @@ namespace CoreSim
             }
             else if (tournament)
             {
-                // 偶数番 = 青、奇数番 = 赤。各同盟の最小番号がヘッドアタッカー。
+                // 偶数番 = 青、奇数番 = 赤。各同盟の最小番号がヘッドアタッカー、大きい番号からビルダー。
                 int perSide = Mathf.Clamp(Settings.RobotsPerSide, 1, 4);
-                int playerSlot = Settings.PlayerIsRed ? 1 : 0;
-                if (!Settings.PlayerIsHead && perSide >= 2) playerSlot += 2;
+                int builders = Settings.EffectiveBuilders;
+                if (Settings.Role == PlayerRole.Builder && builders == 0) { builders = 1; if (perSide < 2) perSide = 2; }
+                int rank = Settings.Role switch
+                {
+                    PlayerRole.Builder => perSide - 1,                       // 同盟内で最後の番号 = ビルダー
+                    PlayerRole.Attacker => perSide - builders >= 2 ? 1 : 0,  // 2 台目 (アタッカーが 2 台以上いるとき)
+                    _ => 0,
+                };
+                int playerSlot = (Settings.PlayerIsRed ? 1 : 0) + rank * 2;
                 for (int i = 0; i < perSide * 2; i++)
                 {
                     bool isPlayer = i == playerSlot;
                     string side = MatchState.TeamOf(i) == Team.Blue ? "青" : "赤";
                     slots.Add(((byte)i, isPlayer ? SlotKind.Host : SlotKind.Cpu, isPlayer ? "P1" : $"CPU {i + 1} ({side})", false));
                 }
+                buildersPerSide = builders;
                 Match = new MatchState
                 {
                     Mode = MatchMode.Team,
@@ -577,7 +588,9 @@ namespace CoreSim
                 }
             }
 
-            // 大会ルール: 各同盟の最小番号をヘッドアタッカーにする
+            // 大会ルール: 各同盟の最小番号をヘッドアタッカー、大きい番号から buildersPerSide 台をビルダーにする
+            var slotNumbers = new List<int>();
+            foreach (var s in slots) slotNumbers.Add(s.slot);
             int blueHead = int.MaxValue, redHead = int.MaxValue;
             if (tournament)
             {
@@ -603,7 +616,11 @@ namespace CoreSim
                 Pose pose = ArenaBuilder.Field2027 != null
                     ? ArenaBuilder.Field2027.Spawn(team == Team.Red ? "red" : "blue", sideCount[team]++)
                     : Tuning.StartPoses[slot.slot];
-                RobotAgent agent = RobotFactory.Create(slot.slot, pose, Settings);
+                RobotKind kind = tournament
+                    ? KindForSlot(slot.slot, slotNumbers, buildersPerSide)
+                    : (slot.kind == SlotKind.Host && Settings.Role == PlayerRole.Builder ? RobotKind.Builder : RobotKind.Attacker);
+                RobotAgent agent = RobotFactory.Create(slot.slot, pose, Settings, kind);
+                if (agent.Lift != null) agent.Lift.Registry = ArenaBuilder.Field2027?.Props;
                 agent.DisplayName = slot.name;
                 agent.CanFire = !slot.passive;
                 if (tournament && (slot.slot == blueHead || slot.slot == redHead))
@@ -628,20 +645,28 @@ namespace CoreSim
                         }
                         break;
                     default:
-                        agent.Source = new BotCommandSource
+                        if (agent.IsBuilder)
                         {
-                            Self = agent,
-                            Robots = () => m_Robots,
-                            Passive = slot.passive,
-                            Skill = Settings.Mode == GameMode.Practice && Role == NetRole.None && !tournament ? 0.3f : 0.6f,
-                            Tournament = Tournament,
-                        };
+                            agent.Source = new BotBuilderSource { Self = agent, Robots = () => m_Robots, Tournament = Tournament };
+                        }
+                        else
+                        {
+                            agent.Source = new BotCommandSource
+                            {
+                                Self = agent,
+                                Robots = () => m_Robots,
+                                Passive = slot.passive,
+                                Skill = Settings.Mode == GameMode.Practice && Role == NetRole.None && !tournament ? 0.3f : 0.6f,
+                                Tournament = Tournament,
+                            };
+                        }
                         break;
                 }
                 agent.ResetToStart();
                 m_Robots.Add(agent);
             }
             m_Robots.Sort((a, b) => a.Index.CompareTo(b.Index));
+            ArenaBuilder.Field2027?.Props.SetRemote(false);   // ブロック・コンテナを開始位置へ (ホスト / ローカルは物理あり)
 
             if (tournament)
             {
@@ -702,6 +727,21 @@ namespace CoreSim
             Tournament.BeginRound();
             m_LastBeepSecond = -1;
             Match.Begin();
+        }
+
+        /// <summary>
+        /// 大会ルールの種別の割り当て。同盟 (番号の偶奇) ごとに番号順に並べ、最初の 1 台がヘッドアタッカー、
+        /// 最後の buildersPerSide 台がビルダー (アタッカーが 1 台は残るように丸める)。ホストとクライアントで同じ計算をする。
+        /// </summary>
+        public static RobotKind KindForSlot(int slot, IReadOnlyList<int> allSlots, int buildersPerSide)
+        {
+            Team team = MatchState.TeamOf(slot);
+            var mine = new List<int>();
+            foreach (int s in allSlots) if (MatchState.TeamOf(s) == team) mine.Add(s);
+            mine.Sort();
+            int builders = Mathf.Clamp(buildersPerSide, 0, Mathf.Max(0, mine.Count - 1));
+            int rank = mine.IndexOf(slot);
+            return rank >= 0 && rank >= mine.Count - builders ? RobotKind.Builder : RobotKind.Attacker;
         }
 
         private PlayerCommandSource NewLocalSource(int playerIndex)
@@ -886,6 +926,9 @@ namespace CoreSim
                     Shots = (ushort)r.ShotCount,
                     Hits = (ushort)r.Health.Hits,
                     IsHead = r.IsHeadAttacker,
+                    IsBuilder = r.IsBuilder,
+                    Lift = r.Lift != null ? r.Lift.Height : 0f,
+                    Held = r.Lift != null && r.Lift.Held != null ? r.Lift.Held.Id : (ushort)0,
                 };
                 if (Tournament != null && Tournament.View.Robots.TryGetValue(r.Index, out RobotExtra x))
                 {
@@ -905,6 +948,25 @@ namespace CoreSim
                 Vector3 v = d.Body.linearVelocity;
                 s.Discs.Add(new DiscState { Id = d.Id, Px = p.x, Py = p.y, Pz = p.z, Vx = v.x, Vy = v.y, Vz = v.z });
                 if (s.Discs.Count >= 255) break;
+            }
+            // ブロック・コンテナ: 動いたものだけ毎回、全部を 1 秒に 1 回 (落として止まったものを取りこぼさない)
+            if (ArenaBuilder.Field2027 != null)
+            {
+                bool full = m_Tick % 30 == 0;
+                foreach (FieldProp prop in ArenaBuilder.Field2027.Props.Props)
+                {
+                    if (prop == null) continue;
+                    if (!full && !prop.MovedSince(0.002f) && prop.HeldBy == null) continue;
+                    Vector3 p = prop.transform.position;
+                    Quaternion q = prop.transform.rotation;
+                    s.Props.Add(new PropState
+                    {
+                        Id = prop.Id, Held = prop.HeldBy != null, InSlot = prop.Slot != null,
+                        Px = p.x, Py = p.y, Pz = p.z, Qx = q.x, Qy = q.y, Qz = q.z, Qw = q.w,
+                    });
+                    prop.MarkSent();
+                    if (s.Props.Count >= 255) break;
+                }
             }
             if (Tournament != null)
             {
@@ -938,6 +1000,7 @@ namespace CoreSim
                 Tournament.SetupRemote(lobby.BestOf);
             }
             m_ClientInput = NewLocalSource(0);
+            ArenaBuilder.Field2027?.Props.SetRemote(true);
             m_InMatch = true;
             m_Paused = false;
             m_ClientPhase = MatchPhase.Idle;
@@ -974,7 +1037,8 @@ namespace CoreSim
                 {
                     Team team = MatchState.TeamOf(rs.Slot);
                     Pose pose = Tuning.StartPoses[Mathf.Clamp(rs.Slot, 0, Tuning.StartPoses.Length - 1)];
-                    agent = RobotFactory.Create(rs.Slot, pose, Settings);
+                    agent = RobotFactory.Create(rs.Slot, pose, Settings, rs.IsBuilder ? RobotKind.Builder : RobotKind.Attacker);
+                    if (agent.Lift != null) agent.Lift.Registry = ArenaBuilder.Field2027?.Props;
                     agent.DisplayName = LobbyName(rs.Slot);
                     agent.IsPlayer = rs.Slot == m_Client.Slot;
                     agent.MakeRemote();
@@ -997,6 +1061,11 @@ namespace CoreSim
                 }
                 agent.SetRemoteTarget(new Vector3(rs.Px, rs.Py, rs.Pz), new Quaternion(rs.Qx, rs.Qy, rs.Qz, rs.Qw));
                 agent.ApplyRemoteState(rs.Hp, rs.Hits, rs.Ko, rs.Turbo);
+                if (agent.Lift != null)
+                {
+                    FieldProp held = rs.Held != 0 && ArenaBuilder.Field2027 != null ? ArenaBuilder.Field2027.Props.Find(rs.Held) : null;
+                    agent.ApplyRemoteLift(rs.Lift, held);
+                }
 
                 if (m_LastShots.TryGetValue(rs.Slot, out int shots) && rs.Shots > shots) Audio.PlayShot(agent.transform.position);
                 if (m_LastHits.TryGetValue(rs.Slot, out int hits) && rs.Hits > hits) Audio.PlayHit(agent.transform.position);
@@ -1013,6 +1082,15 @@ namespace CoreSim
             if (Tournament != null && s.Tournament)
             {
                 Tournament.ApplyRemote(s);
+            }
+            if (ArenaBuilder.Field2027 != null)
+            {
+                foreach (PropState ps in s.Props)
+                {
+                    FieldProp prop = ArenaBuilder.Field2027.Props.Find(ps.Id);
+                    if (prop == null || (prop.HeldBy != null && ps.Held)) continue;   // 持たれている間はハンドに付いて動く
+                    prop.ApplyRemote(new Vector3(ps.Px, ps.Py, ps.Pz), new Quaternion(ps.Qx, ps.Qy, ps.Qz, ps.Qw), ps.Held, ps.InSlot);
+                }
             }
 
             m_SeenDiscs.Clear();

@@ -159,10 +159,10 @@ namespace CoreSim.Net
             return LatestSnapshot;
         }
 
-        public void SendInput(float moveX, float moveY, float turn, bool fire, bool turbo)
+        public void SendInput(float moveX, float moveY, float turn, bool fire, bool turbo, float lift = 0f, bool grab = false)
         {
             if (State != Status.Connected) return;
-            var m = new InputMessage { Seq = ++m_InputSeq, MoveX = moveX, MoveY = moveY, Turn = turn, Fire = fire, Turbo = turbo };
+            var m = new InputMessage { Seq = ++m_InputSeq, MoveX = moveX, MoveY = moveY, Turn = turn, Fire = fire, Turbo = turbo, Lift = lift, Grab = grab };
             NetCodec.WriteInput(m_Writer, m, m_Token);
             m_Transport.Send(m_Writer.Buffer, m_Writer.Length, m_Server);
         }

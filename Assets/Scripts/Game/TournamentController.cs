@@ -24,6 +24,7 @@ namespace CoreSim
     public struct RobotExtra
     {
         public bool IsHead;
+        public bool IsBuilder;
         public int Hp;
         public int MaxHp;
         public int Magazine;
@@ -65,7 +66,7 @@ namespace CoreSim
             foreach (RobotAgent a in agents)
             {
                 m_Agents[a.Index] = a;
-                TournamentRobot r = Round.AddRobot(a.Index, SideOf(a.Team), a.IsHeadAttacker);
+                TournamentRobot r = Round.AddRobot(a.Index, SideOf(a.Team), a.IsHeadAttacker, a.Kind);
                 // HP の上限が機体ごとに違う (アタッカー 60 / ヘッド 300) ので、HUD 用の HealthModel を作り直す
                 a.Health = new HealthModel(r.MaxHp, Config.HitDamage);
                 m_InSupply[a.Index] = false;
@@ -90,6 +91,7 @@ namespace CoreSim
         {
             Round.Begin();
             View.Log.Clear();
+            Field?.Props.ResetAll();
             foreach (RobotAgent a in m_Agents.Values)
             {
                 a.ResetToStart();
@@ -199,6 +201,7 @@ namespace CoreSim
                 View.Robots[r.Slot] = new RobotExtra
                 {
                     IsHead = r.IsHead,
+                    IsBuilder = r.IsBuilder,
                     Hp = r.Hp,
                     MaxHp = r.MaxHp,
                     Magazine = r.Magazine,
@@ -227,7 +230,74 @@ namespace CoreSim
                 SkillLockFor = Mathf.Max(0f, a.SkillLockUntil - t),
                 PitInCredits = (byte)Mathf.Clamp(a.PitInCredits, 0, 255),
                 Wins = (byte)wins,
+                Sites = (byte)a.SitesMask,
+                Spots = (uint)a.SpotsMask,
+                Containers = (byte)Mathf.Clamp(a.Containers, 0, 255),
             };
+        }
+
+        // ------------------------------------------------------------------ 運搬・建設 (ビルダー)
+
+        /// <summary>つかむと反則になる理由 (HUD の警告)。ホストはルールから、クライアントは受信した状態から判定する。</summary>
+        public string PickupWarning(RobotAgent robot, FieldProp prop)
+        {
+            if (robot == null || prop == null) return null;
+            Side side = SideOf(robot.Team);
+            if (prop.Kind == PropKind.Block)
+            {
+                if (!robot.IsBuilder) return "ビルダー以外のロボットがブロックを保持した";
+                if (prop.Slot != null && prop.Slot.Kind == PlaceKind.Site) return "ビルドサイトに置かれたブロックを取り出した";
+                return null;
+            }
+            bool onSpot = prop.Slot != null && prop.Slot.Kind == PlaceKind.Spot;
+            if (!Remote && Round != null)
+            {
+                return Round.ContainerPickupViolation(side, prop.Origin, prop.ColorSide, onSpot, onSpot ? prop.Slot.RuleSide : (Side?)null);
+            }
+            if (onSpot) return "スポットに置かれたコンテナを取り出した";
+            if (prop.ColorSide.HasValue && prop.ColorSide.Value != side) return "相手同盟の RP コンテナ置き場からコンテナを動かした";
+            AllianceState a = View.Of(side);
+            if (prop.Origin == ContainerOrigin.HolderB && (a.Sites & (1 << 2)) == 0) return "ビルドサイト 3 を獲得する前に置き場 B のコンテナを回収した";
+            if (prop.Origin == ContainerOrigin.HolderC && (a.Sites & (1 << 3)) == 0) return "ビルドサイト 4 を獲得する前に置き場 C のコンテナを回収した";
+            return null;
+        }
+
+        /// <summary>置くと反則になる理由 (相手のスポットなど)。</summary>
+        public string PlaceWarning(RobotAgent robot, FieldProp prop, PropSlot slot)
+        {
+            if (robot == null || prop == null || slot == null) return null;
+            Side side = SideOf(robot.Team);
+            if (slot.Kind == PlaceKind.Spot && slot.RuleSide != side) return "相手同盟のスポットにコンテナを置いた";
+            if (slot.Kind == PlaceKind.Site && slot.RuleSide != side) return "相手のビルドサイト (効果なし)";
+            return null;
+        }
+
+        /// <summary>持ち上げた瞬間 (ホスト)。反則の判定と、スポットのコンテナ数の更新。</summary>
+        public void OnPickUp(RobotAgent robot, FieldProp prop)
+        {
+            if (Remote || Round == null || robot == null || prop == null) return;
+            if (prop.Kind == PropKind.Block)
+            {
+                if (!robot.IsBuilder) Round.NonBuilderHeldBlock(robot.Index);
+                else if (prop.Slot != null && prop.Slot.Kind == PlaceKind.Site) Round.RemoveBlockFromSite(robot.Index);
+                return;
+            }
+            bool onSpot = prop.Slot != null && prop.Slot.Kind == PlaceKind.Spot;
+            Round.PickUpContainer(robot.Index, prop.Origin, prop.ColorSide, onSpot, onSpot ? prop.Slot.RuleSide : (Side?)null);
+        }
+
+        /// <summary>置いた瞬間 (ホスト)。スポットの得点、ビルドサイトの獲得。</summary>
+        public void OnPlaced(RobotAgent robot, FieldProp prop, PropSlot slot)
+        {
+            if (Remote || Round == null || robot == null || prop == null || slot == null) return;
+            if (slot.Kind == PlaceKind.Spot && prop.Kind == PropKind.Container)
+            {
+                Round.PlaceContainerOnSpot(robot.Index, slot.RuleSide, slot.Index);
+            }
+            else if (slot.Kind == PlaceKind.Site && prop.Kind == PropKind.Block)
+            {
+                Round.PlaceBlockOnSite(robot.Index, slot.RuleSide, slot.Index, slot.Count);
+            }
         }
 
         // ------------------------------------------------------------------ 判定の入口 (ホスト)
@@ -296,6 +366,7 @@ namespace CoreSim
                 View.Robots[rs.Slot] = new RobotExtra
                 {
                     IsHead = rs.IsHead,
+                    IsBuilder = rs.IsBuilder,
                     Hp = rs.Hp,
                     MaxHp = rs.MaxHp,
                     Magazine = rs.Magazine,

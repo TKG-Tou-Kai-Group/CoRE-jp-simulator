@@ -124,13 +124,39 @@ namespace CoreSim.Tests
             Assert.AreEqual("ホスト", back.Slots[0].Name);
             Assert.AreEqual(SlotKind.Cpu, back.Slots[1].Kind);
 
-            NetCodec.WriteInput(w, new InputMessage { Seq = 9, MoveX = -0.5f, MoveY = 1f, Turn = 0.25f, Fire = true, Turbo = false }, 7u);
+            NetCodec.WriteInput(w, new InputMessage { Seq = 9, MoveX = -0.5f, MoveY = 1f, Turn = 0.25f, Fire = true, Turbo = false, Lift = -1f, Grab = true }, 7u);
             InputMessage input = NetCodec.ReadInput(new ByteReader(w.Buffer, w.Length), out uint inputToken);
             Assert.AreEqual(7u, inputToken);
             Assert.AreEqual(9u, input.Seq);
             Assert.AreEqual(-0.5f, input.MoveX);
             Assert.IsTrue(input.Fire);
             Assert.IsFalse(input.Turbo);
+            Assert.AreEqual(-1f, input.Lift);
+            Assert.IsTrue(input.Grab);
+        }
+
+        [Test]
+        public void BuilderAndPropsRoundTrip()
+        {
+            var snap = new SnapshotMessage { Tick = 5, Tournament = true };
+            snap.Robots.Add(new RobotState { Slot = 2, Hp = 80, MaxHp = 80, IsBuilder = true, Lift = 0.75f, Held = 17 });
+            snap.Props.Add(new PropState { Id = 17, Held = true, Px = 1f, Py = 0.5f, Pz = -2f, Qx = 0f, Qy = 0.707f, Qz = 0f, Qw = 0.707f });
+            snap.Props.Add(new PropState { Id = 40, InSlot = true, Px = -7f, Py = 0.375f, Pz = 2.2f, Qw = 1f });
+            snap.Red = new AllianceState { Vp = 60, Sites = 0b0101, Spots = 0b1111, Containers = 4 };
+            var w = new ByteWriter();
+            NetCodec.WriteSnapshot(w, snap);
+            SnapshotMessage back = NetCodec.ReadSnapshot(new ByteReader(w.Buffer, w.Length));
+            Assert.IsTrue(back.Robots[0].IsBuilder);
+            Assert.AreEqual(0.75f, back.Robots[0].Lift);
+            Assert.AreEqual(17, back.Robots[0].Held);
+            Assert.AreEqual(2, back.Props.Count);
+            Assert.IsTrue(back.Props[0].Held);
+            Assert.IsFalse(back.Props[0].InSlot);
+            Assert.AreEqual(0.707f, back.Props[0].Qy);
+            Assert.IsTrue(back.Props[1].InSlot);
+            Assert.AreEqual(5, back.Red.Sites);
+            Assert.AreEqual(15u, back.Red.Spots);
+            Assert.AreEqual(4, back.Red.Containers);
         }
 
         [Test]
