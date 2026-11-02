@@ -267,6 +267,10 @@ namespace CoreSim
             Detach();
             HeldBy = by;
             Body.isKinematic = true;
+            // 親 (ハンド) に付いて動く間は補間を切る。kinematic な Rigidbody の補間は自分の前回位置からの差分を
+            // 描画位置に足すため、親の移動と二重になって持ち物だけが倍の距離を進んで見える
+            Body.interpolation = RigidbodyInterpolation.None;
+            m_HasTarget = false;   // クライアント: 放したあと最初のスナップショットでその位置に合わせる
             transform.SetParent(hand, true);
             transform.localPosition = Vector3.zero;
             transform.localRotation = Quaternion.identity;
@@ -281,6 +285,7 @@ namespace CoreSim
             if (!Remote)
             {
                 Body.isKinematic = false;
+                Body.interpolation = RigidbodyInterpolation.Interpolate;
                 Body.linearVelocity = velocity;
                 Body.angularVelocity = Vector3.zero;
             }
@@ -349,7 +354,7 @@ namespace CoreSim
 
         private void Update()
         {
-            if (!Remote || !m_HasTarget) return;
+            if (!Remote || !m_HasTarget || HeldBy != null) return;   // 持たれている間はハンドに付いて動く
             float k = 1f - Mathf.Exp(-Time.deltaTime * 20f);
             transform.position = Vector3.Lerp(transform.position, m_TargetPos, k);
             transform.rotation = Quaternion.Slerp(transform.rotation, m_TargetRot, k);

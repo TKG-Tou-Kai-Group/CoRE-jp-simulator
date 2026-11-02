@@ -16,7 +16,8 @@ namespace CoreSim
         public const float MinHeight = 0.10f;     // ハンド中心の床からの高さ。ブロック (高さ 0.2) を床から持てる
         public const float MaxHeight = 1.00f;     // スポット上段 (0.85) にコンテナ (0.15) を置ける
         public const float LiftSpeed = 0.45f;     // m/s
-        public const float GrabRange = 0.38f;     // ハンド中心から物体中心まで
+        public const float GrabRange = 0.22f;     // ハンド中心から物体中心まで (水平)。爪の間にほぼ収まっている必要がある
+        public const float GrabHeightTolerance = 0.10f;   // ハンド中心と物体中心の高さの差
         public const float PlaceRange = 0.45f;    // 持っている物体の底面から置き場所まで
 
         public RobotAgent Owner;
@@ -110,14 +111,21 @@ namespace CoreSim
             var tc = GameDirector.Instance != null ? GameDirector.Instance.Tournament : null;
             if (Held == null)
             {
-                int n = Physics.OverlapSphereNonAlloc(Hand.position, GrabRange, m_Hits, 1 << FieldProp.Layer, QueryTriggerInteraction.Ignore);
+                // 爪の間に入っている物だけ: 水平に GrabRange 以内、高さの差が GrabHeightTolerance 以内
+                float radius = Mathf.Sqrt(GrabRange * GrabRange + GrabHeightTolerance * GrabHeightTolerance);
+                int n = Physics.OverlapSphereNonAlloc(Hand.position, radius, m_Hits, 1 << FieldProp.Layer, QueryTriggerInteraction.Ignore);
                 float best = float.MaxValue;
                 for (int i = 0; i < n; i++)
                 {
                     var prop = m_Hits[i].GetComponent<FieldProp>();
                     if (prop == null || prop.HeldBy != null || (prop.Remote && prop.RemoteHeld)) continue;
-                    float d = (prop.transform.position - Hand.position).sqrMagnitude;
-                    if (d < best) { best = d; Candidate = prop; }
+                    Vector3 d = prop.transform.position - Hand.position;
+                    if (Mathf.Abs(d.y) > GrabHeightTolerance) continue;
+                    d.y = 0f;
+                    float flat = d.sqrMagnitude;
+                    if (flat > GrabRange * GrabRange || flat >= best) continue;
+                    best = flat;
+                    Candidate = prop;
                 }
                 if (Candidate != null && tc != null && Owner != null) CandidateWarning = tc.PickupWarning(Owner, Candidate);
             }
