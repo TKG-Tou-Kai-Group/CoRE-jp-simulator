@@ -1,4 +1,4 @@
-using Unity.AI.Navigation;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.AI;
 
@@ -11,79 +11,91 @@ namespace CoreSim
     /// 2027 フィールドにはスロープの先が谷になっている高台や、片側が段差のバンカーがある。
     /// 方向だけで進む CPU はスロープを登った先の谷に落ちて動けなくなった。エージェントの
     /// 段差 (6 cm) と勾配 (25 度) を機体に合わせて焼いた NavMesh なら、谷の床は落ちない限り
-    /// 繋がっていない領域になるので、経路は谷を通らない。進入禁止ゾーンは歩けない領域にする。
+    /// 繋がっていない領域になるので、経路は谷を通らない。進入禁止ゾーンとバンカーは歩けない領域、
+    /// 手動補給エリアは Supply 領域にする。
+    /// NavMeshSurface は使わず NavMeshBuilder を直接呼ぶ。NavMeshSurface は Editor では
+    /// 「同じステージにある」NavMeshModifierVolume しか集めず、実行時に作った領域の指定が
+    /// 無視されて、バンカーの帯の間を経路が通っていた。
     /// </remarks>
     public static class NavigationBuilder
     {
         /// <summary>手動補給エリアの NavMesh 領域番号 (NavMeshAreas.asset の "Supply")。</summary>
         public const int SupplyArea = 3;
+        private const int NotWalkable = 1;
 
-        public static NavMeshSurface Build(GameObject arenaRoot, Field2027Data field)
+        private static NavMeshDataInstance s_Instance;
+
+        public static void Build(GameObject arenaRoot, Field2027Data field)
         {
-            var surface = arenaRoot.GetComponent<NavMeshSurface>();
-            if (surface == null)
+            float t0 = Time.realtimeSinceStartup;
+            if (s_Instance.valid) NavMesh.RemoveNavMeshData(s_Instance);
+            NavMeshTriangulation before = NavMesh.CalculateTriangulation();
+            if (before.vertices != null && before.vertices.Length > 0)
             {
-                surface = arenaRoot.AddComponent<NavMeshSurface>();
+                Debug.LogWarning($"[Navigation] 焼く前から NavMesh がある (頂点 {before.vertices.Length})。消して焼き直す");
+                NavMesh.RemoveAllNavMeshData();
             }
-            surface.collectObjects = CollectObjects.Children;
-            surface.useGeometry = NavMeshCollectGeometry.PhysicsColliders;   // 見た目だけの部品は無視する
-            surface.layerMask = ~((1 << Tuning.LayerDisc) | (1 << Tuning.LayerMinimapOnly) | (1 << Tuning.LayerRobot));
-            surface.agentTypeID = 0;
-            surface.overrideVoxelSize = true;
-            surface.voxelSize = 0.05f;
-            surface.overrideTileSize = true;
-            surface.tileSize = 128;
+
+            NavMeshBuildSettings settings = NavMesh.GetSettingsByID(0);   // 半径 0.45、高さ 0.8、段差 0.06、勾配 25 (NavMeshAreas.asset)
+            settings.overrideVoxelSize = true;
+            settings.voxelSize = 0.05f;
+            settings.overrideTileSize = true;
+            settings.tileSize = 128;
+
+            int layerMask = ~((1 << Tuning.LayerDisc) | (1 << Tuning.LayerMinimapOnly) | (1 << Tuning.LayerRobot));
+            var sources = new List<NavMeshBuildSource>();
+            var markups = new List<NavMeshBuildMarkup>();
+            NavMeshBuilder.CollectSources(arenaRoot.transform, layerMask, NavMeshCollectGeometry.PhysicsColliders, 0, markups, sources);
+            int geometry = sources.Count;
 
             if (field != null)
             {
                 foreach (PolyZoneDef z in field.Manifest.noEntryZones)
                 {
-                    // 回転した箱で囲む (外接矩形だと床に何もない所まで通れなくなる)
-                    var go = new GameObject("NoEntryNav");
-                    go.transform.SetParent(arenaRoot.transform, false);
-                    go.transform.position = new Vector3(z.cx, 0.5f, z.cz);
-                    go.transform.rotation = Quaternion.Euler(0f, z.yawDeg, 0f);
-                    var mod = go.AddComponent<NavMeshModifierVolume>();
-                    mod.size = new Vector3(z.width + 1.0f, 1f, z.length + 1.0f);   // 機体の半幅ぶん広げる
-                    mod.area = 1;   // Not Walkable
+                    // 回転した箱で囲む (外接矩形だと床に何もない所まで通れなくなる)。機体の半幅ぶん広げる
+                    AddBox(sources, new Vector3(z.cx, 0.5f, z.cz), Quaternion.Euler(0f, z.yawDeg, 0f),
+                           new Vector3(z.width + 1.0f, 1f, z.length + 1.0f), NotWalkable);
                 }
-                // バンカーは CPU の経路から外す。中央のバンカーは 150 mm の台の上に 290 mm の帯が 2 本あり、帯の間の
-                // 隙間 (約 1 m) を NavMesh が通路とみなして CPU を通そうとしたが、機体は物理的に通れずに端で回り続けた。
-                // 人は乗れる (段差側から降りるのも自由)。機体の半幅ぶん広げる
                 if (field.Manifest.bunkers != null)
                 {
+                    // バンカーは CPU の経路から外す。中央のバンカーは 150 mm の台の上に 290 mm の帯が 2 本あり、帯の間の
+                    // 隙間 (約 1 m) を NavMesh が通路とみなして CPU を通そうとしたが、機体は物理的に通れずに端で回り続けた。
+                    // 人は乗れる (段差側から降りるのも自由)
                     foreach (BunkerDef b in field.Manifest.bunkers)
                     {
-                        var go = new GameObject("BunkerNav");
-                        go.transform.SetParent(arenaRoot.transform, false);
-                        go.transform.position = new Vector3(b.cx, 0.5f, b.cz);
-                        go.transform.rotation = Quaternion.Euler(0f, b.yawDeg, 0f);
-                        var mod = go.AddComponent<NavMeshModifierVolume>();
-                        mod.size = new Vector3(b.width + 1.0f, 1f, b.length + 1.0f);
-                        mod.area = 1;   // Not Walkable
+                        AddBox(sources, new Vector3(b.cx, 0.5f, b.cz), Quaternion.Euler(0f, b.yawDeg, 0f),
+                               new Vector3(b.width + 1.0f, 1f, b.length + 1.0f), NotWalkable);
                     }
                 }
                 foreach (RectDef r in field.Manifest.supplyZones)
                 {
-                    var go = new GameObject("SupplyNav_" + r.side);
-                    go.transform.SetParent(arenaRoot.transform, false);
-                    go.transform.position = new Vector3((r.xMin + r.xMax) / 2f, 0.5f, (r.zMin + r.zMax) / 2f);
-                    var mod = go.AddComponent<NavMeshModifierVolume>();
-                    mod.size = new Vector3(r.xMax - r.xMin + 0.6f, 1f, r.zMax - r.zMin + 0.6f);
-                    mod.area = SupplyArea;
+                    AddBox(sources, new Vector3((r.xMin + r.xMax) / 2f, 0.5f, (r.zMin + r.zMax) / 2f), Quaternion.identity,
+                           new Vector3(r.xMax - r.xMin + 0.6f, 1f, r.zMax - r.zMin + 0.6f), SupplyArea);
                 }
             }
 
-            float t0 = Time.realtimeSinceStartup;
-            surface.BuildNavMesh();
-            Debug.Log($"[Navigation] NavMesh を焼いた ({(Time.realtimeSinceStartup - t0) * 1000f:F0} ms)");
+            // フィールドと補給エリアを含む範囲だけ焼く (地面のプレーンはもっと広い)
+            var bounds = new Bounds(Vector3.zero, new Vector3(32f, 6f, 20f));
+            NavMeshData data = NavMeshBuilder.BuildNavMeshData(settings, sources, bounds, Vector3.zero, Quaternion.identity);
+            s_Instance = NavMesh.AddNavMeshData(data);
+            Debug.Log($"[Navigation] NavMesh を焼いた ({(Time.realtimeSinceStartup - t0) * 1000f:F0} ms、形状 {geometry}、領域の箱 {sources.Count - geometry})");
             LogSummary(field);
-            return surface;
+        }
+
+        private static void AddBox(List<NavMeshBuildSource> sources, Vector3 center, Quaternion rotation, Vector3 size, int area)
+        {
+            sources.Add(new NavMeshBuildSource
+            {
+                shape = NavMeshBuildSourceShape.ModifierBox,
+                transform = Matrix4x4.TRS(center, rotation, Vector3.one),
+                size = size,
+                area = area,
+            });
         }
 
         /// <summary>
-        /// 焼けた NavMesh の大きさと、スタートゾーンから中央・相手スタートゾーンへの経路の有無をログに出す。
-        /// CPU が動かないときに「NavMesh が無い / 繋がっていない / 遠回り」を切り分けるため。
+        /// 焼けた NavMesh の大きさ、領域の指定が効いているか、スタートゾーンから中央・相手スタートゾーンへの
+        /// 経路の有無をログに出す。CPU が動かないときに「NavMesh が無い / 繋がっていない / 遠回り」を切り分けるため。
         /// </summary>
         private static void LogSummary(Field2027Data field)
         {
@@ -97,6 +109,12 @@ namespace CoreSim
             foreach (Vector3 v in tri.vertices) { min = Vector3.Min(min, v); max = Vector3.Max(max, v); }
             Debug.Log($"[Navigation] 頂点 {tri.vertices.Length}、三角形 {tri.indices.Length / 3}、範囲 x[{min.x:F1},{max.x:F1}] y[{min.y:F2},{max.y:F2}] z[{min.z:F1},{max.z:F1}]");
             if (field == null) return;
+            if (field.Manifest.bunkers != null)
+            {
+                foreach (BunkerDef b in field.Manifest.bunkers) Sample($"バンカー ({b.cx:F1},{b.cz:F1})", new Vector3(b.cx, 0.15f, b.cz));
+            }
+            foreach (PolyZoneDef z in field.Manifest.noEntryZones) Sample($"進入禁止 ({z.cx:F1},{z.cz:F1})", new Vector3(z.cx, 0f, z.cz));
+            foreach (RectDef r in field.Manifest.supplyZones) Sample($"補給 {r.side}", field.SupplyPoint(r.side));
             int mask = NavMesh.AllAreas & ~(1 << SupplyArea);
             foreach (string side in new[] { "red", "blue" })
             {
@@ -106,6 +124,12 @@ namespace CoreSim
                 Probe($"{side} スタート → {enemy} スタート", from, field.Spawn(enemy, 0).position, mask);
                 Probe($"{side} スタート → {enemy} ブロックゾーン付近", from, side == "red" ? new Vector3(3f, 0f, 3.5f) : new Vector3(-3f, 0f, -3.5f), mask);
             }
+        }
+
+        private static void Sample(string label, Vector3 p)
+        {
+            bool ok = NavMesh.SamplePosition(p, out NavMeshHit hit, 0.3f, NavMesh.AllAreas);
+            Debug.Log(ok ? $"[Navigation] {label}: NavMesh あり (領域 {hit.mask})" : $"[Navigation] {label}: NavMesh なし (歩けない)");
         }
 
         private static void Probe(string label, Vector3 from, Vector3 to, int mask)
