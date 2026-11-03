@@ -36,6 +36,7 @@ namespace CoreSim
         private string m_Mode = "";
         private bool m_PathOk;
         private float m_NextLogTime;
+        private float m_NextPitInRequest;
 
         public void DebugPath(List<Vector3> points)
         {
@@ -133,8 +134,17 @@ namespace CoreSim
                 }
                 if (me != null && me.Magazine == 0)
                 {
-                    // 許可がないのに入ると反則なので、自同盟のスタートゾーンの内側 (補給エリアから離れた点) で待つ
-                    m_Mode = "弾切れ: スタートゾーンで待機";
+                    // 弾切れになったら自分でピットインを申請する (味方が人の同盟でも同じ。同盟の RP を 20 使う)。
+                    // 許可が出るまでは、許可がないのに入ると反則なので、自同盟のスタートゾーンの内側で待つ
+                    if (Time.time >= m_NextPitInRequest)
+                    {
+                        m_NextPitInRequest = Time.time + 2f;
+                        if (Tournament.Round.Of(me.Side).Discs > 0 && Tournament.Round.CanActivate(me.Side, Rules.SkillKind.PitIn, out _, me.Slot))
+                        {
+                            Tournament.ActivateSkill(me.Side, Rules.SkillKind.PitIn, out _, me.Slot);
+                        }
+                    }
+                    m_Mode = "弾切れ: ピットインを申請して待機";
                     return Steer(t, Tournament.Field.Spawn(TournamentController.SideName(me.Side), 0).position, 1.0f, blockedAhead, blockedLeft, blockedRight);
                 }
                 if (me != null && Tournament.View.BaseAttackActive(Tournament.Round.Config))

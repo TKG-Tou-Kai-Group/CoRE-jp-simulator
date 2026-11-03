@@ -24,16 +24,7 @@ namespace CoreSim
             if (m_LastBaseHp >= 0 && me.BaseHp < m_LastBaseHp) m_BaseHitAt = t;
             m_LastBaseHp = me.BaseHp;
 
-            // 1. 弾切れの機体に (その機体を指定して) ピットインを許可する。許可は 1 台ずつ
-            foreach (TournamentRobot r in me.Robots)
-            {
-                if (!r.Destroyed && r.Magazine == 0 && !r.PitInGranted && me.Discs > 0 &&
-                    round.CanActivate(Side, SkillKind.PitIn, out _, r.Slot))
-                {
-                    round.ActivateSkill(Side, SkillKind.PitIn, out _, r.Slot);
-                    break;
-                }
-            }
+            // 1. ピットインは弾切れの CPU が自分で申請する (BotCommandSource)。総大将は出さない
             // 2. 同盟のディスクが尽きそうならサプライ
             if (me.Discs < 40 && round.CanActivate(Side, SkillKind.Supply, out _))
             {
