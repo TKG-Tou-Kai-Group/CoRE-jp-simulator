@@ -140,6 +140,8 @@ namespace CoreSim.Net
     public sealed class SnapshotMessage
     {
         public uint Tick;
+        /// <summary>何試合目か (ホストが試合を始めるたびに +1)。参加者は変わったら試合を作り直す (再戦)。</summary>
+        public byte Serial;
         public byte Phase;           // CoreSim.Rules.MatchPhase
         public float Remaining;
         public byte OutcomeKind;     // CoreSim.Rules.OutcomeKind
@@ -244,7 +246,7 @@ namespace CoreSim.Net
 
     public static class NetCodec
     {
-        public const ushort ProtocolVersion = 4;
+        public const ushort ProtocolVersion = 5;
 
         /// <summary>名前に使える文字数。表示を崩す制御文字と改行は落とす。</summary>
         public const int MaxNameLength = 16;
@@ -308,7 +310,7 @@ namespace CoreSim.Net
         public static void WriteSnapshot(ByteWriter w, SnapshotMessage m)
         {
             w.Reset(); w.Byte((byte)MsgType.Snapshot);
-            w.UInt(m.Tick); w.Byte(m.Phase); w.Float(m.Remaining); w.Byte(m.OutcomeKind); w.SByte(m.OutcomeIndex);
+            w.UInt(m.Tick); w.Byte(m.Serial); w.Byte(m.Phase); w.Float(m.Remaining); w.Byte(m.OutcomeKind); w.SByte(m.OutcomeIndex);
             w.Bool(m.Tournament);
             w.Byte((byte)Math.Min(m.Robots.Count, 255));
             foreach (RobotState r in m.Robots)
@@ -431,6 +433,7 @@ namespace CoreSim.Net
             var m = new SnapshotMessage
             {
                 Tick = r.UInt(),
+                Serial = r.Byte(),
                 Phase = r.Byte(),
                 Remaining = r.Float(),
                 OutcomeKind = r.Byte(),

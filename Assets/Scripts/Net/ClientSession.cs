@@ -125,7 +125,8 @@ namespace CoreSim.Net
                     case MsgType.Snapshot:
                     {
                         SnapshotMessage s = NetCodec.ReadSnapshot(reader);
-                        if (LatestSnapshot == null || s.Tick >= LatestSnapshot.Tick)
+                        // 新しい試合 (Serial が変わる) ではホストの Tick が戻るので、古い Tick でも受ける
+                        if (LatestSnapshot == null || s.Serial != LatestSnapshot.Serial || s.Tick >= LatestSnapshot.Tick)
                         {
                             LatestSnapshot = s;
                             HasNewSnapshot = true;

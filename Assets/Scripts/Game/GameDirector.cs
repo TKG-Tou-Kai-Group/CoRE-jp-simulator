@@ -59,6 +59,9 @@ namespace CoreSim
         private double m_NextSnapshotTime;
         private double m_NextInputTime;
         private uint m_Tick;
+        private byte m_MatchSerial;          // ホスト: 試合を始めるたびに +1 (スナップショットに載せる)
+        private byte m_ClientSerial;         // 参加者: 今受けている試合の番号
+        private bool m_ClientSerialKnown;
         private PlayerCommandSource m_ClientInput;
         private readonly Dictionary<int, GhostDisc> m_Ghosts = new Dictionary<int, GhostDisc>();
         private readonly Dictionary<int, int> m_LastShots = new Dictionary<int, int>();
@@ -354,7 +357,18 @@ namespace CoreSim
                 {
                     if (m_Client.HasNewSnapshot)
                     {
-                        ApplySnapshot(m_Client.TakeSnapshot());
+                        SnapshotMessage s = m_Client.TakeSnapshot();
+                        if (s != null)
+                        {
+                            if (m_ClientSerialKnown && s.Serial != m_ClientSerial)
+                            {
+                                // ホストが再戦を始めた: 結果画面と前の試合の機体を片付けて作り直す
+                                StartClientMatch();
+                            }
+                            m_ClientSerial = s.Serial;
+                            m_ClientSerialKnown = true;
+                            ApplySnapshot(s);
+                        }
                     }
                     if (m_ClientInput != null && now >= m_NextInputTime)
                     {
@@ -502,6 +516,7 @@ namespace CoreSim
         {
             ClearMatch();
             LeaveMenuForMatch();
+            m_MatchSerial++;
             bool tournament = TournamentRequested;
 
             var slots = new List<(byte slot, SlotKind kind, string name, bool passive)>();
@@ -905,6 +920,7 @@ namespace CoreSim
             var s = new SnapshotMessage
             {
                 Tick = ++m_Tick,
+                Serial = m_MatchSerial,
                 Phase = (byte)Match.Phase,
                 Remaining = Match.Remaining,
                 OutcomeKind = (byte)Match.Outcome.Kind,
@@ -1004,6 +1020,7 @@ namespace CoreSim
             m_InMatch = true;
             m_Paused = false;
             m_ClientPhase = MatchPhase.Idle;
+            m_ClientSerialKnown = false;
             Time.timeScale = 1f;
         }
 

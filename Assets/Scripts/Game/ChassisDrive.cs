@@ -27,6 +27,13 @@ namespace CoreSim
         private float m_LastCommandTime = float.NegativeInfinity;
         private Vector3 m_GroundNormal = Vector3.up;
         private bool m_Grounded;
+        private float m_TiltedSince = -1f;
+
+        /// <summary>転倒から起き上がっている最中 (ゲームとして成立させるための救済。実機にはない)。</summary>
+        public bool Righting { get; private set; }
+        public const float TiltLimit = 0.55f;      // transform.up.y がこれより小さい = 約 57 度以上傾いた
+        public const float RightingDelay = 1.0f;   // 傾いたままこの秒数たったら起き上がる
+        public const float RightingGain = 3.0f;    // 角加速度 [rad/s^2 / rad]
 
         /// <summary>接地面の法線 (接地していなければ上向き)。</summary>
         public Vector3 GroundNormal => m_GroundNormal;
@@ -64,6 +71,28 @@ namespace CoreSim
                 Vector3 g = Physics.gravity;
                 Vector3 tangential = g - Vector3.Dot(g, m_GroundNormal) * m_GroundNormal;
                 m_Body.AddForce(-tangential, ForceMode.Acceleration);
+            }
+
+            // 転倒からの復帰: 大きく傾いたまま 1 秒たったら、ゆっくり起き上がる向きのトルクをかける
+            float upY = transform.up.y;
+            if (upY < TiltLimit)
+            {
+                if (m_TiltedSince < 0f) m_TiltedSince = Time.fixedTime;
+                if (Time.fixedTime - m_TiltedSince > RightingDelay) Righting = true;
+            }
+            else if (upY > 0.97f)
+            {
+                m_TiltedSince = -1f;
+                Righting = false;
+            }
+            if (Righting)
+            {
+                Vector3 axis = Vector3.Cross(transform.up, Vector3.up);
+                float angle = Vector3.Angle(transform.up, Vector3.up) * Mathf.Deg2Rad;
+                Vector3 torque = axis.normalized * (angle * RightingGain) - Vector3.ProjectOnPlane(m_Body.angularVelocity, Vector3.up) * 1.5f;
+                m_Body.AddTorque(Vector3.ClampMagnitude(torque, 4f), ForceMode.Acceleration);
+                m_Body.AddForce(Vector3.up * 4f, ForceMode.Acceleration);   // 床に押し付けられたまま回れるように少し浮かせる
+                return;   // 起き上がるまでは走らない
             }
 
             float vx = 0f, vy = 0f, wz = 0f;

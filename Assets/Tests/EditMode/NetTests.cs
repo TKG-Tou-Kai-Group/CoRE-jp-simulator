@@ -53,7 +53,7 @@ namespace CoreSim.Tests
         [Test]
         public void SnapshotRoundTrips()
         {
-            var snap = new SnapshotMessage { Tick = 1234, Phase = 2, Remaining = 87.5f, OutcomeKind = 4, OutcomeIndex = 3 };
+            var snap = new SnapshotMessage { Tick = 1234, Serial = 9, Phase = 2, Remaining = 87.5f, OutcomeKind = 4, OutcomeIndex = 3 };
             snap.Robots.Add(new RobotState { Slot = 1, Px = 1.5f, Py = 0.1f, Pz = -9.75f, Qx = 0, Qy = 0.707f, Qz = 0, Qw = 0.707f, Hp = 190, Ko = false, Turbo = true, Shots = 7, Hits = 1 });
             snap.Robots.Add(new RobotState { Slot = 3, Hp = 0, Ko = true });
             snap.Discs.Add(new DiscState { Id = 42, Px = 1, Py = 2, Pz = 3, Vx = 20, Vy = 1.2f, Vz = -0.5f });
@@ -65,6 +65,7 @@ namespace CoreSim.Tests
 
             SnapshotMessage back = NetCodec.ReadSnapshot(new ByteReader(bytes, bytes.Length));
             Assert.AreEqual(1234u, back.Tick);
+            Assert.AreEqual(9, back.Serial);
             Assert.AreEqual(87.5f, back.Remaining);
             Assert.AreEqual(3, back.OutcomeIndex);
             Assert.AreEqual(2, back.Robots.Count);

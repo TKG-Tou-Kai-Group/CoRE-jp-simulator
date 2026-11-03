@@ -234,6 +234,7 @@ namespace CoreSim
                 bool alive = !m_Self.IsKnockedOut;
                 m_Reticle.gameObject.SetActive(alive && match.Phase == MatchPhase.Playing);
                 string turbo = m_Self.IsTurbo ? "  TURBO" : "";
+                if (!m_Self.Remote && m_Self.Drive != null && m_Self.Drive.Righting) turbo += "  転倒 → 復帰中";
                 float speed = m_Self.Remote ? 0f : (m_Self.Drive != null ? m_Self.Drive.Speed : 0f);
                 m_OwnStatus.text = alive
                     ? (m_Self.Remote ? $"HP {m_Self.Health.Hp}{turbo}" : $"HP {m_Self.Health.Hp}   {speed:F1} m/s{turbo}")

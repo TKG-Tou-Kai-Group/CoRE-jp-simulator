@@ -37,6 +37,9 @@ namespace CoreSim
             var hull = root.AddComponent<BoxCollider>();
             hull.center = new Vector3(0f, 0.10f, 0f);
             hull.size = new Vector3(0.9f, 0.10f, 0.9f);
+            // 重心は低く固定する (バッテリーと駆動が底にある実機に合わせる)。コライダから自動で求めると、
+            // ビルダーはマストのぶん重心が上がって、棚にハンドを突っ込んだときに転倒しやすい
+            body.centerOfMass = new Vector3(0f, 0.08f, 0f);
 
             Material white = MaterialLibrary.Color(new Color(0.92f, 0.92f, 0.92f), 0.4f);
             Material gray = MaterialLibrary.Color(new Color(0.35f, 0.35f, 0.38f), 0.3f);
