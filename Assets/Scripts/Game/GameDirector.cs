@@ -729,6 +729,13 @@ namespace CoreSim
                         {
                             agent.Source = new BotBuilderSource { Self = agent, Robots = () => m_Robots, Tournament = Tournament };
                         }
+                        else if (!slot.passive && Role != NetRole.Client && !string.IsNullOrWhiteSpace(Settings.CpuProgramText))
+                        {
+                            // 設定「CPU のプログラム」: 普通の CPU アタッカーも保存したプログラムで動かす (難易度を自分で調整する)
+                            AutoProgram cpuProgram = AutoProgram.Parse(Settings.CpuProgramText);
+                            if (cpuProgram.Rules.Count == 0) cpuProgram = AutoProgram.Default();
+                            agent.Source = new AutoAttackerSource { Self = agent, Robots = () => m_Robots, Tournament = Tournament, Program = cpuProgram, DrivesAttacker = true };
+                        }
                         else
                         {
                             agent.Source = new BotCommandSource

@@ -34,8 +34,10 @@ namespace CoreSim
         public Vector3 DirectivePoint;
         public float DirectiveRange = 5f;
         public Rules.AutoTarget TargetPolicy = Rules.AutoTarget.Nearest;
-        /// <summary>オートアタッカー: ピットインを申請せず、弾切れでもプログラム通りに動く。ログは AutoAttackerSource が出す。</summary>
+        /// <summary>オートアタッカー: ピットインを申請せず、弾切れでもプログラム通りに動く (補給できないため)。</summary>
         public bool IsAutoProgram;
+        /// <summary>ログは外側 (AutoAttackerSource) が出すので、ここでは出さない。</summary>
+        public bool QuietLog;
         /// <summary>大会ルールのとき。陣地攻撃と補給の判断に使う。</summary>
         public TournamentController Tournament;
 
@@ -100,7 +102,7 @@ namespace CoreSim
             m_Current = Think();
             m_Current = Unstick(m_Current);
             m_Current = GuardZones(m_Current);
-            if (!IsAutoProgram) BotLog.Maybe(Self, this, ref m_NextLogTime);
+            if (!QuietLog) BotLog.Maybe(Self, this, ref m_NextLogTime);
             return m_Current;
         }
 

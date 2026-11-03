@@ -78,7 +78,7 @@ namespace CoreSim
         public int CpuProgramSlot = -1;
 
         public string CpuProgramText => CpuProgramSlot >= 0 && CpuProgramSlot < ProgramSlots.Count ? ProgramSlots[CpuProgramSlot].Text ?? "" : "";
-        public string CpuProgramLabel => CpuProgramSlot < 0 || CpuProgramSlot >= ProgramSlots.Count ? "既定のプログラム"
+        public string CpuProgramLabel => CpuProgramSlot < 0 || CpuProgramSlot >= ProgramSlots.Count ? "既定 (内蔵の CPU)"
             : string.IsNullOrWhiteSpace(ProgramSlots[CpuProgramSlot].Text) ? $"スロット {CpuProgramSlot + 1} (空 → 既定)"
             : $"スロット {CpuProgramSlot + 1}: {(string.IsNullOrWhiteSpace(ProgramSlots[CpuProgramSlot].Name) ? $"プログラム {CpuProgramSlot + 1}" : ProgramSlots[CpuProgramSlot].Name)}";
 

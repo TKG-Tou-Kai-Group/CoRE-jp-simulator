@@ -6,6 +6,8 @@ namespace CoreSim
 {
     /// <summary>
     /// オートアタッカー (14.1 / 12.7): 人は始動と停止だけで、動きはプログラム (<see cref="AutoProgram"/>) が決める。
+    /// <see cref="DrivesAttacker"/> なら普通の CPU アタッカーをプログラムで動かす (難易度を自分で調整するため)。
+    /// その場合は弾切れのピットイン申請と補給は CPU のままで、動きだけプログラムに従う。
     /// 0.2 秒ごとにセンサー値 (敵・味方までの距離、HP %、残弾、時間、陣地攻撃の可否) を埋めて行を選び、
     /// 移動・照準・発射は <see cref="BotCommandSource"/> に指示として渡す。
     /// </summary>
@@ -17,6 +19,8 @@ namespace CoreSim
         public AutoProgram Program = AutoProgram.Default();
         /// <summary>人の操縦手 (始動・停止・スキルの入力用。機体の操縦には使わない)。</summary>
         public PlayerCommandSource Operator;
+        /// <summary>オートアタッカーではなく、普通の CPU アタッカー (ヘッド含む) をこのプログラムで動かす。</summary>
+        public bool DrivesAttacker;
 
         private BotCommandSource m_Bot;
         private float m_NextThink;
@@ -32,13 +36,13 @@ namespace CoreSim
             {
                 if (m_Bot == null)
                 {
-                    m_Bot = new BotCommandSource { Self = Self, Robots = Robots, Tournament = Tournament, Skill = 0.7f, IsAutoProgram = true };
+                    m_Bot = new BotCommandSource { Self = Self, Robots = Robots, Tournament = Tournament, Skill = 0.7f, IsAutoProgram = !DrivesAttacker, QuietLog = true };
                 }
                 return m_Bot;
             }
         }
 
-        public bool Active => Self != null && (Tournament == null || Self.AutoStarted);
+        public bool Active => Self != null && (Tournament == null || !Self.IsAuto || Self.AutoStarted);
 
         public string Status
         {
