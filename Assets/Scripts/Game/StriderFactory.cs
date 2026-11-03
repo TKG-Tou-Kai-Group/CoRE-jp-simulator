@@ -11,8 +11,13 @@ namespace CoreSim
     {
         public const float Thigh = 0.22f;      // 股関節から膝 [m]
         public const float Calf = 0.22f;       // 膝から脚先 [m]
-        public const float HipX = 0.10f;       // 胴体の中心から股関節まで (左右)
+        public const float HipX = 0.15f;       // 胴体の中心から股関節まで (左右)。狭いと横に転ぶ
         public const float HipZ = 0.18f;       // (前後)
+        public const float Splay = 10f;        // 脚を外へ開く角度 [deg] (股関節の外転は無いので固定)。接地幅を股関節の幅より広くする
+        /// <summary>横の安定の補助: ロールを戻すトルク [N·m/rad] と減衰。脚にピッチしか無いので、無いと 2 本脚で接地した
+        /// 瞬間に横へ倒れる (実機は股関節の外転で踏ん張る)。0 にすれば補助なし。</summary>
+        public const float RollAssist = 80f;
+        public const float RollAssistDamping = 8f;
         public const float BodyMass = 6f;
         public const float HipLimit = 70f;     // 股関節の可動域 [deg] (前後)
         public const float KneeMin = 5f;       // 膝 (脛を後ろへ曲げる向きが正)
@@ -33,6 +38,17 @@ namespace CoreSim
 
         /// <summary>脚先のワールド位置。</summary>
         public Vector3 Foot(int i) => Feet[i].position;
+
+        private void FixedUpdate()
+        {
+            if (Body == null || RollAssist <= 0f) return;
+            // 横の安定の補助: 胴体のロール (進行方向の軸回りの傾き) を戻す
+            Vector3 up = Body.transform.up;
+            Vector3 forward = Body.transform.forward;
+            float roll = Mathf.Asin(Mathf.Clamp(Vector3.Dot(up, Vector3.Cross(Vector3.up, forward).normalized), -1f, 1f));
+            float rollRate = Vector3.Dot(Body.angularVelocity, forward);
+            Body.AddTorque(forward * (-roll * RollAssist - rollRate * RollAssistDamping), ForceMode.Force);
+        }
         public bool Fallen => Body.transform.up.y < 0.35f;
 
         /// <summary>
@@ -74,9 +90,10 @@ namespace CoreSim
             body.solverVelocityIterations = 32;
             body.linearDamping = 0.05f;
             body.angularDamping = 0.5f;
+            body.centerOfMass = new Vector3(0f, -0.03f, 0f);   // 重心は少し低く (バッテリーが底にある想定)
             var box = root.AddComponent<BoxCollider>();
-            box.size = new Vector3(0.24f, 0.10f, 0.44f);
-            Visuals.Create("body", PrimitiveType.Cube, root.transform, Vector3.zero, Quaternion.identity, new Vector3(0.24f, 0.10f, 0.44f), bodyMat);
+            box.size = new Vector3(0.30f, 0.10f, 0.44f);
+            Visuals.Create("body", PrimitiveType.Cube, root.transform, Vector3.zero, Quaternion.identity, new Vector3(0.30f, 0.10f, 0.44f), bodyMat);
             Visuals.Create("head", PrimitiveType.Cube, root.transform, new Vector3(0f, 0.03f, 0.25f), Quaternion.identity, new Vector3(0.12f, 0.08f, 0.08f), footMat);
             var strider = root.AddComponent<Strider>();
             strider.Body = body;
@@ -88,6 +105,7 @@ namespace CoreSim
                 var hipGo = new GameObject($"hip_{i}");
                 hipGo.transform.SetParent(root.transform, false);
                 hipGo.transform.localPosition = new Vector3(sx, 0f, sz);
+                hipGo.transform.localRotation = Quaternion.Euler(0f, 0f, sx < 0f ? Splay : -Splay);   // 左脚は左へ、右脚は右へ開く
                 hipGo.layer = Tuning.LayerRobot;
                 var hip = hipGo.AddComponent<ArticulationBody>();
                 hip.mass = 0.7f;
