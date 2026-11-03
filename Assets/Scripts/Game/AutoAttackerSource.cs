@@ -155,6 +155,11 @@ namespace CoreSim
             string side = TournamentController.SideName(mine);
             string enemy = TournamentController.SideName(TournamentRound.Opposite(mine));
             float sign = mine == Side.Red ? -1f : 1f;   // 赤は x < 0 側
+            if (m_Rule != null && m_Rule.Custom && point == AutoPoint.Custom)
+            {
+                // 地図で選んだ点は「自同盟が赤側」の座標。青同盟なら点対称 (フィールドは点対称)
+                return mine == Side.Red ? new Vector3(m_Rule.X, 0f, m_Rule.Z) : new Vector3(-m_Rule.X, 0f, -m_Rule.Z);
+            }
             switch (point)
             {
                 case AutoPoint.OwnFront: return BaseFront(field, side);

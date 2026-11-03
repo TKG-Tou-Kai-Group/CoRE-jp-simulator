@@ -39,6 +39,7 @@ namespace CoreSim.Rules
         LeftLane = 4,    // 自分から見て左の通路 (陣地側)
         RightLane = 5,   // 右の通路 (ブロックゾーン側)
         EnemyStart = 6,  // 相手同盟のスタートゾーンの前
+        Custom = 7,      // 地図で選んだ点 (AutoRule.X / Z。自同盟が赤側のときの座標。青なら点対称に写す)
     }
 
     /// <summary>狙う相手の選び方。</summary>
@@ -62,14 +63,17 @@ namespace CoreSim.Rules
     {
         public readonly List<AutoClause> Conditions = new List<AutoClause>();
         public AutoAction Action = AutoAction.Engage;
-        public float Param = 5f;             // Engage: 間合い [m]。GoTo: 地点 (AutoPoint)
+        public float Param = 5f;             // Engage: 間合い [m]。GoTo: 地点 (AutoPoint の番号)
         public AutoTarget Target = AutoTarget.Nearest;
+        /// <summary>GoTo: 地図で選んだ点 (自同盟が赤側のときのフィールド座標 [m])。</summary>
+        public bool Custom;
+        public float X, Z;
 
-        public AutoPoint Point => (AutoPoint)Math.Max(0, Math.Min((int)Param, (int)AutoPoint.EnemyStart));
+        public AutoPoint Point => Custom ? AutoPoint.Custom : (AutoPoint)Math.Max(0, Math.Min((int)Param, (int)AutoPoint.EnemyStart));
 
         public AutoRule Clone()
         {
-            var r = new AutoRule { Action = Action, Param = Param, Target = Target };
+            var r = new AutoRule { Action = Action, Param = Param, Target = Target, Custom = Custom, X = X, Z = Z };
             r.Conditions.AddRange(Conditions);
             return r;
         }
@@ -147,7 +151,8 @@ namespace CoreSim.Rules
         // ------------------------------------------------------------------ テキスト形式
         // 1 行 = 1 ルール:  条件[&条件...] > 行動[=値] [@狙い]
         //   条件: always | enemy<N | enemy>N | hp<N | ammo<N | time>N | time<N | base | ally<N
-        //   行動: engage[=間合い] | base | goto=center|ownfront|enemyfront|start|left|right|enemystart | hold | retreat
+        //   行動: engage[=間合い] | base | goto=center|ownfront|enemyfront|start|left|right|enemystart|X,Z | hold | retreat
+        //         (X,Z は地図で選んだ点。自同盟が赤側のときのフィールド座標 [m]。青同盟では点対称に写す)
         //   狙い: @nearest | @weakest | @head | @builder | @attacker
 
         private static readonly (AutoCondition kind, string name, bool hasValue, char op)[] s_Conditions =
@@ -194,7 +199,11 @@ namespace CoreSim.Rules
             }
             sb.Append(" > ").Append(s_Actions[(int)r.Action]);
             if (r.Action == AutoAction.Engage) sb.Append('=').Append(r.Param.ToString("0.##", CultureInfo.InvariantCulture));
-            else if (r.Action == AutoAction.GoTo) sb.Append('=').Append(s_Points[(int)r.Point]);
+            else if (r.Action == AutoAction.GoTo)
+            {
+                if (r.Custom) sb.Append('=').Append(r.X.ToString("0.##", CultureInfo.InvariantCulture)).Append(',').Append(r.Z.ToString("0.##", CultureInfo.InvariantCulture));
+                else sb.Append('=').Append(s_Points[(int)r.Point]);
+            }
             if (r.Action == AutoAction.Engage || r.Action == AutoAction.Hold || r.Action == AutoAction.GoTo)
             {
                 sb.Append(" @").Append(s_Targets[(int)r.Target]);
@@ -256,8 +265,21 @@ namespace CoreSim.Rules
             }
             else if (r.Action == AutoAction.GoTo)
             {
-                int pi = value != null ? Array.IndexOf(s_Points, value) : -1;
-                r.Param = pi < 0 ? 0f : pi;
+                int comma = value != null ? value.IndexOf(',') : -1;
+                if (comma > 0 &&
+                    float.TryParse(value.Substring(0, comma), NumberStyles.Float, CultureInfo.InvariantCulture, out float x) &&
+                    float.TryParse(value.Substring(comma + 1), NumberStyles.Float, CultureInfo.InvariantCulture, out float z))
+                {
+                    r.Custom = true;
+                    r.X = Clamp(x, -14f, 14f);
+                    r.Z = Clamp(z, -8f, 8f);
+                    r.Param = 0f;
+                }
+                else
+                {
+                    int pi = value != null ? Array.IndexOf(s_Points, value) : -1;
+                    r.Param = pi < 0 ? 0f : pi;
+                }
             }
             else r.Param = 0f;
             for (int i = 1; i < parts.Length; i++)
@@ -328,6 +350,7 @@ namespace CoreSim.Rules
             AutoPoint.LeftLane => "左の通路 (陣地側)",
             AutoPoint.RightLane => "右の通路 (ブロックゾーン側)",
             AutoPoint.EnemyStart => "相手のスタートゾーンの前",
+            AutoPoint.Custom => "地図で選んだ点",
             _ => "中央",
         };
 

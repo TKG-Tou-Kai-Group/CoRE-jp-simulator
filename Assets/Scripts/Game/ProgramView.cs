@@ -141,7 +141,15 @@ namespace CoreSim
             }
             else if (rule.Action == AutoAction.GoTo)
             {
-                UiKit.Button(row, AutoProgram.PointName(rule.Point), new Vector2(200f, 50f), () => { rule.Param = ((int)rule.Point + 1) % 7; Changed(); }, new Color(0.3f, 0.35f, 0.3f, 0.95f), 18);
+                string pointLabel = rule.Custom ? $"地図 ({rule.X:0.0}, {rule.Z:0.0})" : AutoProgram.PointName(rule.Point);
+                UiKit.Button(row, pointLabel, new Vector2(200f, 50f), () =>
+                {
+                    // 名前付きの地点を巡回する (地図で選んだ点からは「中央」へ戻る)
+                    rule.Param = rule.Custom ? 0f : ((int)rule.Point + 1) % 7;
+                    rule.Custom = false;
+                    Changed();
+                }, new Color(0.3f, 0.35f, 0.3f, 0.95f), 18);
+                UiKit.Button(row, "地図", new Vector2(70f, 50f), () => OpenMap(rule), new Color(0.2f, 0.35f, 0.45f, 0.95f), 18);
             }
             if (rule.Action == AutoAction.Engage || rule.Action == AutoAction.Hold || rule.Action == AutoAction.GoTo)
             {
@@ -152,6 +160,29 @@ namespace CoreSim
             UiKit.Button(row, "↓", new Vector2(44f, 50f), () => { if (index < m_Program.Rules.Count - 1) { Swap(index, index + 1); Changed(); } }, null, 22);
             UiKit.Button(row, "×", new Vector2(44f, 50f), () => { m_Program.Rules.RemoveAt(index); Changed(); }, new Color(0.5f, 0.2f, 0.2f, 0.95f), 22);
         }
+
+        private MapPickerView m_Map;
+
+        private void OpenMap(AutoRule rule)
+        {
+            if (m_Map != null) return;
+            m_Map = MapPickerView.Create(transform.parent, rule.Custom, rule.X, rule.Z, (x, z) =>
+            {
+                rule.Custom = true;
+                rule.X = x;
+                rule.Z = z;
+                CloseMap();
+                Changed();
+            }, CloseMap);
+        }
+
+        private void CloseMap()
+        {
+            if (m_Map != null) Destroy(m_Map.gameObject);
+            m_Map = null;
+        }
+
+        private void OnDestroy() => CloseMap();
 
         private void Swap(int a, int b)
         {
