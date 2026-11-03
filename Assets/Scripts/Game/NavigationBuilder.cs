@@ -47,6 +47,22 @@ namespace CoreSim
                     mod.size = new Vector3(z.width + 1.0f, 1f, z.length + 1.0f);   // 機体の半幅ぶん広げる
                     mod.area = 1;   // Not Walkable
                 }
+                // バンカーは CPU の経路から外す。中央のバンカーは 150 mm の台の上に 290 mm の帯が 2 本あり、帯の間の
+                // 隙間 (約 1 m) を NavMesh が通路とみなして CPU を通そうとしたが、機体は物理的に通れずに端で回り続けた。
+                // 人は乗れる (段差側から降りるのも自由)。機体の半幅ぶん広げる
+                if (field.Manifest.bunkers != null)
+                {
+                    foreach (BunkerDef b in field.Manifest.bunkers)
+                    {
+                        var go = new GameObject("BunkerNav");
+                        go.transform.SetParent(arenaRoot.transform, false);
+                        go.transform.position = new Vector3(b.cx, 0.5f, b.cz);
+                        go.transform.rotation = Quaternion.Euler(0f, b.yawDeg, 0f);
+                        var mod = go.AddComponent<NavMeshModifierVolume>();
+                        mod.size = new Vector3(b.width + 1.0f, 1f, b.length + 1.0f);
+                        mod.area = 1;   // Not Walkable
+                    }
+                }
                 foreach (RectDef r in field.Manifest.supplyZones)
                 {
                     var go = new GameObject("SupplyNav_" + r.side);

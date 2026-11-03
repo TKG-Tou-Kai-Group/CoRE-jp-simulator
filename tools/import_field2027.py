@@ -18,6 +18,7 @@ Unity = ((x-12000)/1000, y/1000, -(z-7500)/1000)。赤スタートゾーンが U
 青が (+x, +z) 側になる (ルールナビの上面図で左下が赤、右上が青)。
 """
 import argparse
+import math
 import base64
 import json
 import os
@@ -266,7 +267,7 @@ def main():
     manifest = {"source": "CoRE-1 Rule Navigator (Rulebook V27.1.3) embedded field model, converted by tools/import_field2027.py",
                 "fieldWidth": 24.0, "fieldDepth": 15.0, "groups": [],
                 "palette": [{"name": k, "hex": v} for k, v in PALETTE.items()],
-                "basePanels": [], "bunkerTops": [], "startZones": [], "supplyZones": [], "noEntryZones": [], "spawns": [],
+                "basePanels": [], "bunkerTops": [], "bunkers": [], "startZones": [], "supplyZones": [], "noEntryZones": [], "spawns": [],
                 "props": [], "slots": [], "carriers": []}
 
     for g in d["groups"]:
@@ -390,6 +391,30 @@ def main():
                     "size": [round(float(size[0]) / 1000, 4), round(float(size[1]) / 1000, 4), round(float(size[2]) / 1000, 4)],
                 })
         if g["z"] == "bunker" and g["m"] == "dark":
+            # バンカー全体の外形 (回転した長方形)。CPU の経路から外すための NavMesh の歩けない領域に使う。
+            # 中央のバンカーは 150 mm の台の上に 290 mm の帯が 2 本あり、帯の間の隙間 (約 1 m) を NavMesh が
+            # 通路とみなして CPU を通そうとし、機体は物理的に通れずにバンカーの端で回り続けた
+            for c in clusters(v, f, merge_mm=100.0):
+                if c["max"][1] < 30:
+                    continue
+                pts = np.array([to_unity(p) for p in v[np.unique(c["tris"].ravel())]])
+                best = None
+                for deg in range(0, 180):
+                    t = math.radians(deg)
+                    cs, sn = math.cos(t), math.sin(t)
+                    u = pts[:, 0] * cs + pts[:, 2] * sn
+                    w = -pts[:, 0] * sn + pts[:, 2] * cs
+                    area = (u.max() - u.min()) * (w.max() - w.min())
+                    if best is None or area < best[0]:
+                        best = (area, deg, u.min(), u.max(), w.min(), w.max())
+                _, deg, u0, u1, w0, w1 = best
+                t = math.radians(deg)
+                cs, sn = math.cos(t), math.sin(t)
+                um, wm = (u0 + u1) / 2, (w0 + w1) / 2
+                # 長辺の向き (cos, sin) を Unity の forward (sin yaw, cos yaw) にする: yaw = 90 - deg
+                manifest["bunkers"].append({"cx": round(float(um * cs - wm * sn), 3), "cz": round(float(um * sn + wm * cs), 3),
+                                            "yawDeg": round(90.0 - deg, 1), "length": round(float(u1 - u0), 3),
+                                            "width": round(float(w1 - w0), 3), "height": round(float(pts[:, 1].max()), 3)})
             # 上面 = バンカーごとの「いちばん高い平らな部分」(7.6)。中央の 2 基は 290 mm (2 本の帯)、
             # 陣地横の 2 基は 150 mm。中央の 150 mm の面はスロープの踊り場で、75 mm の段差ともども含めない。
             flats = {}
@@ -494,6 +519,8 @@ def main():
         print(" panel", p["side"], "high" if p["high"] else "low", p["center"], p["normal"])
     for b in manifest["bunkerTops"]:
         print(" bunker top", b)
+    for b in manifest["bunkers"]:
+        print(" bunker", b)
     for z in manifest["noEntryZones"]:
         print(" no-entry", z)
     for z in manifest["supplyZones"]:

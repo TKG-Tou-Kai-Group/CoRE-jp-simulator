@@ -735,6 +735,40 @@
    "y": 0.15
   }
  ],
+ "bunkers": [
+  {
+   "cx": -11.131,
+   "cz": 5.2,
+   "yawDeg": 90.0,
+   "length": 1.738,
+   "width": 2.4,
+   "height": 0.29
+  },
+  {
+   "cx": 11.131,
+   "cz": -5.2,
+   "yawDeg": 90.0,
+   "length": 1.738,
+   "width": 2.4,
+   "height": 0.29
+  },
+  {
+   "cx": 5.437,
+   "cz": 3.447,
+   "yawDeg": 30.0,
+   "length": 3.1,
+   "width": 1.5,
+   "height": 0.29
+  },
+  {
+   "cx": -5.437,
+   "cz": -3.447,
+   "yawDeg": 30.0,
+   "length": 3.1,
+   "width": 1.5,
+   "height": 0.29
+  }
+ ],
  "startZones": [
   {
    "side": "red",

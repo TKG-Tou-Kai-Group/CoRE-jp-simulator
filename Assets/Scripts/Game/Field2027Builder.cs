@@ -20,6 +20,8 @@ namespace CoreSim
     /// <summary>置き場所: site (1..4、2 段) / spot (1..18) / port (1..2) / valley (1..2)。x,y,z は 1 段目の底面の中心。</summary>
     [Serializable] public class SlotDef { public string kind; public string side; public float x; public float y; public float z; public float yawDeg; public int index; public int levels; public bool post; }
     [Serializable] public class CarrierDef { public string side; public float x; public float z; public float width; public float depth; public float height; }
+    /// <summary>バンカー全体の外形 (回転した長方形)。forward (yawDeg) 方向が length。</summary>
+    [Serializable] public class BunkerDef { public float cx; public float cz; public float yawDeg; public float length; public float width; public float height; }
 
     [Serializable]
     public class FieldManifest
@@ -31,6 +33,7 @@ namespace CoreSim
         public PaletteEntry[] palette;
         public PanelDef[] basePanels;
         public RectDef[] bunkerTops;
+        public BunkerDef[] bunkers;
         public RectDef[] supplyZones;
         public PolyZoneDef[] noEntryZones;
         public ZoneDef[] startZones;
