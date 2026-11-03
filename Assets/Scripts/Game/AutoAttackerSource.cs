@@ -45,8 +45,9 @@ namespace CoreSim
             get
             {
                 if (!Active) return "始動待ち";
+                if (Self.IsKnockedOut) return "撃破中 (復活待ち)";
                 string rule = m_Rule != null ? $"行 {m_RuleIndex + 1}: {AutoProgram.FormatRule(m_Rule)}" : "既定 (交戦)";
-                return $"{rule}  [敵 {Fmt(m_Sensors.EnemyDistance)} 味方 {Fmt(m_Sensors.AllyDistance)} HP {m_Sensors.HpPercent:F0}% 弾 {m_Sensors.Ammo}]  {Bot.Status}";
+                return $"{rule}  [敵 {Fmt(m_Sensors.EnemyDistance)} 味方 {Fmt(m_Sensors.AllyDistance)} HP {m_Sensors.HpPercent:F0}% 弾 {m_Sensors.Ammo} 時間 {m_Sensors.Time:F0}s]  {Bot.Status}";
             }
         }
 
@@ -63,6 +64,13 @@ namespace CoreSim
             if (Self == null) return RobotCommand.None;
             if (!Active)
             {
+                m_Current = RobotCommand.None;
+                BotLog.Maybe(Self, this, ref m_NextLogTime);
+                return m_Current;
+            }
+            if (Self.IsKnockedOut)
+            {
+                // 撃破中は判断しない (復活したら続きから)
                 m_Current = RobotCommand.None;
                 BotLog.Maybe(Self, this, ref m_NextLogTime);
                 return m_Current;
