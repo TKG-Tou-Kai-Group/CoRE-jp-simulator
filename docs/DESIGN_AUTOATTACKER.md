@@ -83,7 +83,8 @@ always > goto=center
 実装:
 
 - `Strider` (StriderFactory.cs): ArticulationBody で胴体 → 股関節 (ピッチ) → 膝 (ピッチ) を 4 本。腿・脛とも 0.22 m
-  (15.3 の 200〜400 mm)、胴体 6 kg。関節はサーボ (stiffness 6 N·m/deg、damping 0.6、上限 40 N·m) で目標角を追従
+  (15.3 の 200〜400 mm)、胴体 6 kg。関節はサーボ (ArticulationDrive: stiffness 2000、damping 100、上限 150 N·m) で目標角を
+  追従。直立は腿 25 度・膝 50 度で脚先が股関節の真下、胴体の高さ 0.40 m
 - `StriderChallenge`: 赤サイドのストライダーエリアで遊ぶ単独モード。Q / W = 対角ペア A の腿を前 / 後ろ (B は逆)、
   O / P = ペア A の膝を曲げる / 伸ばす (B は逆)。キーを押している間だけ目標角が動き、離すと保持する (QWOP より扱いやすい)。
   矢印で視点をロボット中心に回す。R でやり直し、Esc でメニュー

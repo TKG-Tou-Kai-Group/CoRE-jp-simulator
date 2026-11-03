@@ -106,12 +106,12 @@ namespace CoreSim
         private void Spawn()
         {
             if (m_Strider != null) Destroy(m_Strider.gameObject);
-            Vector3 pos = new Vector3(m_Course.StartX, 0.46f, m_Course.LaneCenterZ);
+            Vector3 pos = new Vector3(m_Course.StartX, 0.42f, m_Course.LaneCenterZ);
             Quaternion rot = Quaternion.Euler(0f, m_Course.Direction > 0f ? 90f : -90f, 0f);   // 進行方向 (+x) を向く
             m_Strider = Strider.Create(pos, rot);
             m_HipA = 0f;
             m_KneeA = 0f;
-            m_Strider.SetTargets(0f, Strider.StandKnee, 0f, Strider.StandKnee);
+            m_Strider.SetTargets(Strider.StandHip, Strider.StandKnee, Strider.StandHip, Strider.StandKnee);
             m_Course.Reset();
             m_Time = 0f;
             m_Started = false;
@@ -194,7 +194,7 @@ namespace CoreSim
             if (m_Started && !m_Finished) m_Time += Time.fixedDeltaTime;
             m_HipA = Mathf.Clamp(m_HipA + hip * HipRate * Time.fixedDeltaTime, -HipRange, HipRange);
             m_KneeA = Mathf.Clamp(m_KneeA + knee * KneeRate * Time.fixedDeltaTime, -KneeRange, KneeRange);
-            m_Strider.SetTargets(m_HipA, Strider.StandKnee + m_KneeA, -m_HipA, Strider.StandKnee - m_KneeA);
+            m_Strider.SetTargets(Strider.StandHip + m_HipA, Strider.StandKnee + m_KneeA, Strider.StandHip - m_HipA, Strider.StandKnee - m_KneeA);
 
             // 踏破の判定 (脚先の x)、エリア外、転倒
             m_FootX.Clear();

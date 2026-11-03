@@ -17,10 +17,14 @@ namespace CoreSim
         public const float HipLimit = 70f;     // 股関節の可動域 [deg] (前後)
         public const float KneeMin = 5f;       // 膝 (脛を後ろへ曲げる向きが正)
         public const float KneeMax = 140f;
-        public const float StandKnee = 45f;    // 直立時の膝
-        public const float Stiffness = 6f;     // 関節のサーボ [N·m/deg]
-        public const float Damping = 0.6f;
-        public const float ForceLimit = 40f;   // [N·m]
+        public const float StandHip = 25f;     // 直立時の腿 (前へ 25 度)。膝 50 度と合わせると脚先が股関節の真下に来て、胴体の高さは 0.40 m
+        public const float StandKnee = 50f;    // 直立時の膝
+        // 関節のサーボ。ArticulationDrive の stiffness / damping は目標角との差 (Unity は度で指定するが内部はラジアン) に掛かる
+        // ので、度で考えるより桁が大きい値が要る。胴体 6 kg を 4 本で支えるには股関節に 5〜10 N·m。
+        // (最初 6 / 0.6 / 40 にしたら立てなかった)
+        public const float Stiffness = 2000f;
+        public const float Damping = 100f;
+        public const float ForceLimit = 150f;  // [N·m] 実機 (Unitree Go2 23.7、MEVIUS 30 前後) より強め。手触り優先
 
         public ArticulationBody Body { get; private set; }
         public ArticulationBody[] Hips { get; } = new ArticulationBody[4];
@@ -66,8 +70,8 @@ namespace CoreSim
             root.layer = Tuning.LayerRobot;
             var body = root.AddComponent<ArticulationBody>();
             body.mass = BodyMass;
-            body.solverIterations = 24;
-            body.solverVelocityIterations = 24;
+            body.solverIterations = 32;
+            body.solverVelocityIterations = 32;
             body.linearDamping = 0.05f;
             body.angularDamping = 0.5f;
             var box = root.AddComponent<BoxCollider>();
@@ -91,7 +95,7 @@ namespace CoreSim
                 hip.anchorPosition = Vector3.zero;
                 hip.anchorRotation = Quaternion.identity;            // 回転軸 = 親の x (左右) → ピッチ
                 hip.twistLock = ArticulationDofLock.LimitedMotion;
-                hip.xDrive = new ArticulationDrive { stiffness = Stiffness, damping = Damping, forceLimit = ForceLimit, lowerLimit = -HipLimit, upperLimit = HipLimit, target = 0f };
+                hip.xDrive = new ArticulationDrive { stiffness = Stiffness, damping = Damping, forceLimit = ForceLimit, lowerLimit = -HipLimit, upperLimit = HipLimit, target = -StandHip };
                 hip.jointFriction = 0.02f;
                 hip.angularDamping = 0.3f;
                 var thigh = hipGo.AddComponent<CapsuleCollider>();
