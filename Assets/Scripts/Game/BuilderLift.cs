@@ -17,7 +17,8 @@ namespace CoreSim
         public const float MaxHeight = 1.00f;     // スポット上段 (0.85) にコンテナ (0.15) を置ける
         public const float LiftSpeed = 0.45f;     // m/s
         public const float GrabRange = 0.22f;     // ハンド中心から物体中心まで (水平)。爪の間にほぼ収まっている必要がある
-        public const float GrabHeightTolerance = 0.10f;   // ハンド中心と物体中心の高さの差
+        public const float GrabAbove = 0.10f;     // 物体の中心がハンド中心よりどれだけ上まで
+        public const float GrabBelow = 0.25f;     // どれだけ下まで (谷部の溝の中のブロックは高台の床より 0.1 m 下にある)
         // 置ける範囲は置き場所ごと (PropSlot.Tolerance)。谷部だけ広い
 
         public RobotAgent Owner;
@@ -32,6 +33,8 @@ namespace CoreSim
         public string CandidateWarning { get; private set; }
         /// <summary>放すと置ける場所 (無ければ null = その場に落とす) と、置くと反則になる理由。</summary>
         public PropSlot PlaceTarget { get; private set; }
+        /// <summary>置ける場所が無いとき、範囲内にある埋まった置き場所 (案内用)。</summary>
+        public PropSlot FullTarget { get; private set; }
         public string PlaceWarning { get; private set; }
 
         private bool m_GrabHeld;
@@ -107,12 +110,13 @@ namespace CoreSim
             CandidateWarning = null;
             PlaceTarget = null;
             PlaceWarning = null;
+            FullTarget = null;
             if (Hand == null || Registry == null) return;
             var tc = GameDirector.Instance != null ? GameDirector.Instance.Tournament : null;
             if (Held == null)
             {
-                // 爪の間に入っている物だけ: 水平に GrabRange 以内、高さの差が GrabHeightTolerance 以内
-                float radius = Mathf.Sqrt(GrabRange * GrabRange + GrabHeightTolerance * GrabHeightTolerance);
+                // 爪の間に入っている物だけ: 水平に GrabRange 以内、高さは上に GrabAbove・下に GrabBelow まで
+                float radius = Mathf.Sqrt(GrabRange * GrabRange + GrabBelow * GrabBelow);
                 int n = Physics.OverlapSphereNonAlloc(Hand.position, radius, m_Hits, 1 << FieldProp.Layer, QueryTriggerInteraction.Ignore);
                 float best = float.MaxValue;
                 for (int i = 0; i < n; i++)
@@ -120,7 +124,7 @@ namespace CoreSim
                     var prop = m_Hits[i].GetComponent<FieldProp>();
                     if (prop == null || prop.HeldBy != null || (prop.Remote && prop.RemoteHeld)) continue;
                     Vector3 d = prop.transform.position - Hand.position;
-                    if (Mathf.Abs(d.y) > GrabHeightTolerance) continue;
+                    if (d.y > GrabAbove || -d.y > GrabBelow) continue;
                     d.y = 0f;
                     float flat = d.sqrMagnitude;
                     if (flat > GrabRange * GrabRange || flat >= best) continue;
@@ -133,6 +137,7 @@ namespace CoreSim
             {
                 PlaceTarget = Registry.NearestOpenSlot(Held.Kind, Held.Bottom);
                 if (PlaceTarget != null && tc != null && Owner != null) PlaceWarning = tc.PlaceWarning(Owner, Held, PlaceTarget);
+                if (PlaceTarget == null) FullTarget = Registry.NearestSlot(Held.Kind, Held.Bottom, openOnly: false);
             }
         }
 
@@ -177,7 +182,11 @@ namespace CoreSim
                 string warn = CandidateWarning != null ? $"  ※反則: {CandidateWarning}" : "";
                 return $"{Candidate.Label} を {grabKey} でつかむ{warn}";
             }
-            if (PlaceTarget == null) return $"{Held.Label} を持っている   {grabKey} でその場に落とす";
+            if (PlaceTarget == null)
+            {
+                string full = FullTarget != null ? $"{FullTarget.Label} は埋まっている   " : "";
+                return $"{Held.Label} を持っている   {full}{grabKey} でその場に落とす";
+            }
             string pw = PlaceWarning != null ? $"  ※反則: {PlaceWarning}" : "";
             return $"{Held.Label} を {grabKey} で {PlaceTarget.Label} に置く{pw}";
         }

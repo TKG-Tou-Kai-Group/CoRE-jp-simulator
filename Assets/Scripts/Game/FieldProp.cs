@@ -106,13 +106,16 @@ namespace CoreSim
         /// (<see cref="PropSlot.Tolerance"/>) にあるもので水平に最も近いもの。高さを別に見るのは、スポットの段
         /// (275 mm 間隔) やビルドサイトの 2 段目に、床の高さで放した物が吸い込まれないようにするため。
         /// </summary>
-        public PropSlot NearestOpenSlot(PropKind kind, Vector3 bottom)
+        public PropSlot NearestOpenSlot(PropKind kind, Vector3 bottom) => NearestSlot(kind, bottom, openOnly: true);
+
+        /// <summary>範囲内で最も近い置き場所 (埋まっているものも含む)。「ここは埋まっている」の案内用。</summary>
+        public PropSlot NearestSlot(PropKind kind, Vector3 bottom, bool openOnly)
         {
             PropSlot best = null;
             float bestDist = float.MaxValue;
             foreach (PropSlot s in Slots)
             {
-                if (!s.Accepts(kind) || s.Full) continue;
+                if (!s.Accepts(kind) || (openOnly && s.Full)) continue;
                 s.Tolerance(out float maxFlat, out float above, out float below);
                 Vector3 d = bottom - s.NextBottom;     // 持ち物が置き場所よりどれだけ上か
                 if (d.y > above || -d.y > below) continue;
