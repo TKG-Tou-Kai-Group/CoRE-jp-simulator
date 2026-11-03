@@ -36,8 +36,8 @@ namespace CoreSim.Rules
         OwnFront = 1,    // 自陣地の前
         EnemyFront = 2,  // 相手陣地の前
         Start = 3,       // 自同盟のスタートゾーン
-        LeftLane = 4,    // 自分から見て左の通路 (陣地側)
-        RightLane = 5,   // 右の通路 (ブロックゾーン側)
+        LeftLane = 4,    // 自分から見て左の通路 (相手のブロックゾーン側、中央より向こう)
+        RightLane = 5,   // 右の通路 (自分のブロックゾーン側)
         EnemyStart = 6,  // 相手同盟のスタートゾーンの前
     }
 
@@ -326,8 +326,8 @@ namespace CoreSim.Rules
             AutoPoint.OwnFront => "自陣地の前",
             AutoPoint.EnemyFront => "相手陣地の前",
             AutoPoint.Start => "スタートゾーン",
-            AutoPoint.LeftLane => "左の通路 (陣地側)",
-            AutoPoint.RightLane => "右の通路 (ブロックゾーン側)",
+            AutoPoint.LeftLane => "左の通路 (相手ブロックゾーン側)",
+            AutoPoint.RightLane => "右の通路 (自ブロックゾーン側)",
             AutoPoint.EnemyStart => "相手のスタートゾーンの前",
             _ => "中央",
         };

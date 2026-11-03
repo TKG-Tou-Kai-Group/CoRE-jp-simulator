@@ -31,7 +31,7 @@
 |---|---|---|
 | 交戦 | `engage=R` | 相手に近づいて撃つ。間合い R m を保つ |
 | 陣地攻撃 | `base` | 相手の陣地のパネルを撃つ (攻撃できない時間は交戦) |
-| 移動 | `goto=center / ownfront / enemyfront / start / left / right / enemystart` | 名前付きの地点へ。着いたら待機し、射程内の相手を撃つ |
+| 移動 | `goto=center / ownfront / enemyfront / start / left / right / enemystart` | 名前付きの地点へ。着いたら待機し、射程内の相手を撃つ。right = 自分のブロックゾーン側の通路 (赤なら (-3, -3))、left = 相手のブロックゾーン側の通路 (赤なら (3, 3)、自陣地の前と離すため中央より向こう) |
 | 待機 | `hold` | その場で止まり、射程内の相手を撃つ |
 | 退避 | `retreat` | 自同盟のスタートゾーンへ戻る |
 

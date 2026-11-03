@@ -176,8 +176,10 @@ namespace CoreSim
                     Vector3 toCenter = -sp; toCenter.y = 0f;
                     return sp + (toCenter.sqrMagnitude > 1e-3f ? toCenter.normalized : Vector3.zero) * 3f;
                 }
-                case AutoPoint.LeftLane: return new Vector3(sign * 3f, 0f, -sign * 3f);    // 赤: 陣地側 (z > 0)
-                case AutoPoint.RightLane: return new Vector3(sign * 3f, 0f, sign * 3f);    // 赤: ブロックゾーン側 (z < 0)
+                // 通路は中央を挟んで左右に分ける。右 = 自分のブロックゾーン側 (赤なら (-3, -3))、左 = 相手のブロックゾーン側
+                // (赤なら (3, 3))。自陣地の前と離すため、左は中央より向こう側に置く
+                case AutoPoint.LeftLane: return new Vector3(-sign * 3f, 0f, -sign * 3f);
+                case AutoPoint.RightLane: return new Vector3(sign * 3f, 0f, sign * 3f);
                 default: return Vector3.zero;
             }
         }
