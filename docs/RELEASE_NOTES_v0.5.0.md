@@ -1,6 +1,13 @@
-# CoRE Simulator v0.5.0 (案)
+# CoRE Simulator v0.5.0
 
-オートアタッカーを追加しました。大会ルールで「プログラムで動く自律機」が遊べます。
+オートアタッカー (プログラムで動く自律機) とストライダーチャレンジ (4 本脚を歩かせるタイムアタック) を追加しました。
+
+## ダウンロード
+
+| OS | ファイル | 起動 |
+|---|---|---|
+| Windows 10 / 11 (64 bit) | `CoRE-jp-simulator_v0.5.0_Windows_amd64.zip` | 展開して `CoRE Simulator.exe` を実行 |
+| Linux (x86_64) | `CoRE-jp-simulator_v0.5.0_Linux_amd64.zip` | 展開して `./CoRE-jp-simulator.x86_64` を実行 (必要なら `chmod +x`) |
 
 ## 新しいこと
 

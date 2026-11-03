@@ -76,7 +76,7 @@ namespace CoreSim
             }
 
             RectTransform foot = UiKit.Rect(root, "Foot", new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 30f), new Vector2(1600f, 40f));
-            UiKit.Label(foot, "Text", "Unity_ROS2_Robot_Simulator / CoRE-jp-Unity-ROS2-packages をもとにした単体ゲーム版  v0.4.0", 20, new Color(0.7f, 0.7f, 0.75f));
+            UiKit.Label(foot, "Text", "Unity_ROS2_Robot_Simulator / CoRE-jp-Unity-ROS2-packages をもとにした単体ゲーム版  v0.5.0", 20, new Color(0.7f, 0.7f, 0.75f));
 
             menu.Refresh();
             return menu;
