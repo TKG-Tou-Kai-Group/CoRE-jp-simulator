@@ -15,6 +15,8 @@ namespace CoreSim
     {
         private const float HipRate = 140f;    // [deg/s] キーを押している間の腿の動き
         private const float KneeRate = 160f;
+        private const float SteerGain = 1.6f;  // 通路の中心からのずれ [m] あたり、向きを中心へ寄せる量 (tan)。0.5 m ずれると約 39 度
+        private const float SteerMaxDeg = 55f;
         private const float HipRange = 65f;    // 直立 (腿 25 度) からの振り幅。前へ 90 度まで上げてハードルを越える
         private const float KneeRange = 90f;   // 直立 (膝 50 度) からの曲げ幅。畳めば脚先を股関節の近くまで引き上げられる
 
@@ -109,7 +111,7 @@ namespace CoreSim
             Vector3 pos = new Vector3(m_Course.StartX, 0.42f, m_Course.LaneCenterZ);
             Quaternion rot = Quaternion.Euler(0f, m_Course.Direction > 0f ? 90f : -90f, 0f);   // 進行方向 (+x) を向く
             m_Strider = Strider.Create(pos, rot);
-            m_Strider.Heading = new Vector3(m_Course.Direction, 0f, 0f);   // 向きの補助: 進行方向 (+x) を向き続ける
+            UpdateHeading();
             m_HipA = 0f;
             m_KneeA = 0f;
             m_Strider.SetTargets(Strider.StandHip, Strider.StandKnee, Strider.StandHip, Strider.StandKnee);
@@ -196,6 +198,7 @@ namespace CoreSim
             m_HipA = Mathf.Clamp(m_HipA + hip * HipRate * Time.fixedDeltaTime, -HipRange, HipRange);
             m_KneeA = Mathf.Clamp(m_KneeA + knee * KneeRate * Time.fixedDeltaTime, -KneeRange, KneeRange);
             m_Strider.SetTargets(Strider.StandHip + m_HipA, Strider.StandKnee + m_KneeA, Strider.StandHip - m_HipA, Strider.StandKnee - m_KneeA);
+            UpdateHeading();
 
             // 踏破の判定 (脚先の x)、エリア外、転倒
             m_FootX.Clear();
@@ -223,6 +226,14 @@ namespace CoreSim
             m_OutOfLane = outside;
             if (m_Strider.Fallen && !m_Fallen) Say("転倒  (R でスタートからやり直し)", 4f);
             m_Fallen = m_Strider.Fallen;
+        }
+
+        /// <summary>向きの補助の目標: 進行方向を基本に、通路の中心からずれたぶんだけ中心へ向ける (ずれが大きいほど強く)。</summary>
+        private void UpdateHeading()
+        {
+            float lateral = m_Strider.Body.transform.position.z - m_Course.LaneCenterZ;   // +z 側にずれていれば正
+            float steer = Mathf.Clamp(-lateral * SteerGain, -Mathf.Tan(SteerMaxDeg * Mathf.Deg2Rad), Mathf.Tan(SteerMaxDeg * Mathf.Deg2Rad));
+            m_Strider.Heading = new Vector3(m_Course.Direction, 0f, steer).normalized;
         }
 
         private void RefreshUi()
