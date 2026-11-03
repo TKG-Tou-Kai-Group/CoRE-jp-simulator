@@ -14,6 +14,8 @@ namespace CoreSim
         public float Speed = Tuning.DiscSpeed;
         public float Interval = Tuning.FireInterval;
         public float DispersionDeg = Tuning.DispersionDeg;
+        /// <summary>オートアタッカーのミニディスク (直径 100 mm)。</summary>
+        public bool Mini;
 
         private RobotAgent m_Owner;
         private Rigidbody m_Body;
@@ -46,7 +48,7 @@ namespace CoreSim
             float pitch = Random.Range(-DispersionDeg * 0.5f, DispersionDeg * 0.5f);
             Vector3 dir = Muzzle.rotation * Quaternion.Euler(pitch, yaw, 0f) * Vector3.forward;
             Vector3 inherited = m_Body != null ? m_Body.linearVelocity : Vector3.zero;
-            Disc.Launch(m_Owner, Muzzle.position, dir, Speed, inherited);
+            Disc.Launch(m_Owner, Muzzle.position, dir, Speed, inherited, Mini);
             if (m_Owner != null) m_Owner.ShotCount++;
             m_RollerSpin = 1f;
             GameDirector.Instance?.Audio.PlayShot(Muzzle.position);

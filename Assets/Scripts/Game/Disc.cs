@@ -21,24 +21,28 @@ namespace CoreSim
         public ushort Id { get; private set; }
         public RobotAgent Owner { get; private set; }
         public Rigidbody Body { get; private set; }
+        /// <summary>ミニディスク (オートアタッカー用、直径 100 mm)。ダメージは同じ。</summary>
+        public bool Mini { get; private set; }
 
         private float m_Deadline;
         private bool m_Done;
 
         public static Material Material => MaterialLibrary.Color(new Color(0.95f, 0.95f, 0.9f), 0.5f);
+        public static Material MiniMaterial => MaterialLibrary.Color(new Color(0.6f, 0.95f, 0.9f), 0.5f);
 
-        public static Disc Launch(RobotAgent owner, Vector3 position, Vector3 direction, float speed, Vector3 inheritedVelocity)
+        public static Disc Launch(RobotAgent owner, Vector3 position, Vector3 direction, float speed, Vector3 inheritedVelocity, bool mini = false)
         {
-            GameObject go = Visuals.Create("Disc", PrimitiveType.Cylinder, null, position,
+            float radius = mini ? Tuning.MiniDiscRadius : Tuning.DiscRadius;
+            GameObject go = Visuals.Create(mini ? "MiniDisc" : "Disc", PrimitiveType.Cylinder, null, position,
                 Quaternion.LookRotation(direction, Vector3.up),
-                new Vector3(Tuning.DiscRadius * 2f, Tuning.DiscThickness / 2f, Tuning.DiscRadius * 2f),
-                Material, Tuning.LayerDisc);
+                new Vector3(radius * 2f, Tuning.DiscThickness / 2f, radius * 2f),
+                mini ? MiniMaterial : Material, Tuning.LayerDisc);
 
             var sphere = go.AddComponent<SphereCollider>();
-            sphere.radius = 0.5f;   // ローカル半径 0.5 x スケール 0.18 = 0.09 m
+            sphere.radius = 0.5f;   // ローカル半径 0.5 x スケール (直径) = 実半径
 
             var body = go.AddComponent<Rigidbody>();
-            body.mass = Tuning.DiscMass;
+            body.mass = mini ? Tuning.MiniDiscMass : Tuning.DiscMass;
             body.linearDamping = 0.05f;
             body.angularDamping = 0.5f;
             body.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
@@ -51,6 +55,7 @@ namespace CoreSim
             if (s_NextId == 0) s_NextId = 1;
             disc.Owner = owner;
             disc.Body = body;
+            disc.Mini = mini;
             disc.m_Deadline = Time.time + Tuning.DiscLifetime;
             if (owner != null)
             {
@@ -117,12 +122,13 @@ namespace CoreSim
     {
         public Vector3 Velocity;
 
-        public static GhostDisc Create(Vector3 position, Vector3 velocity)
+        public static GhostDisc Create(Vector3 position, Vector3 velocity, bool mini = false)
         {
+            float radius = mini ? Tuning.MiniDiscRadius : Tuning.DiscRadius;
             GameObject go = Visuals.Create("GhostDisc", PrimitiveType.Cylinder, null, position,
                 Quaternion.LookRotation(velocity.sqrMagnitude > 1e-4f ? velocity : Vector3.forward, Vector3.up),
-                new Vector3(Tuning.DiscRadius * 2f, Tuning.DiscThickness / 2f, Tuning.DiscRadius * 2f),
-                Disc.Material, Tuning.LayerDisc);
+                new Vector3(radius * 2f, Tuning.DiscThickness / 2f, radius * 2f),
+                mini ? Disc.MiniMaterial : Disc.Material, Tuning.LayerDisc);
             var ghost = go.AddComponent<GhostDisc>();
             ghost.Velocity = velocity;
             return ghost;

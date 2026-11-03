@@ -167,7 +167,7 @@ namespace CoreSim
             }
         }
 
-        private static string RowName(RobotAgent agent) => (agent.IsHeadAttacker ? "★ " : agent.IsBuilder ? "[B] " : "") + agent.DisplayName;
+        private static string RowName(RobotAgent agent) => (agent.IsHeadAttacker ? "★ " : agent.IsBuilder ? "[B] " : agent.IsAuto ? "[A] " : "") + agent.DisplayName;
 
         public void Refresh(GameDirector director)
         {

@@ -20,6 +20,8 @@ namespace CoreSim.Net
             public double LastSeen;
             public InputMessage LastInput;
             public double LastInputTime = double.NegativeInfinity;
+            /// <summary>オートアタッカーのプログラム (ロビーで受け取る。空なら既定)。</summary>
+            public string Program = "";
         }
 
         public const double ClientTimeout = 6.0;
@@ -38,6 +40,7 @@ namespace CoreSim.Net
         public ushort MatchSeconds = 120;
         public byte Speed = 1;
         public ushort FireMs = 600;
+        public byte Autos;
         public byte BestOf = 1;
         public byte Builders = 1;    // 大会ルール: 各同盟のビルダーの数
         public int CpuCount;
@@ -61,6 +64,13 @@ namespace CoreSim.Net
         private int m_RepliesInWindow;
 
         public IReadOnlyList<Client> Clients => m_Clients;
+
+        /// <summary>そのスロットの参加者が送ってきたオートアタッカーのプログラム (無ければ空)。</summary>
+        public string ProgramOf(int slot)
+        {
+            foreach (Client c in m_Clients) if (c.Slot == slot) return c.Program ?? "";
+            return "";
+        }
         public int Port => m_Port;
         public TransportKind Kind => m_Kind;
 
@@ -214,6 +224,15 @@ namespace CoreSim.Net
                             if (SkillRequests.Count < 64) SkillRequests.Enqueue((client.Slot, kind));
                         }
                         break;
+                    case MsgType.Program:
+                        if (client != null)
+                        {
+                            string text = NetCodec.ReadProgram(reader, out uint token);
+                            if (token != client.Token) break;
+                            client.LastSeen = now;
+                            client.Program = text ?? "";
+                        }
+                        break;
                     case MsgType.Bye:
                         if (client != null && NetCodec.ReadByeToken(reader) == client.Token)
                         {
@@ -289,7 +308,7 @@ namespace CoreSim.Net
         /// <summary>現在のロビー。スロット 0 はホスト、クライアントは参加順、CPU はその後ろ。</summary>
         public LobbyMessage BuildLobby()
         {
-            var m = new LobbyMessage { State = State, Mode = Mode, MatchSeconds = MatchSeconds, Speed = Speed, BestOf = BestOf, Builders = Builders, FireMs = FireMs };
+            var m = new LobbyMessage { State = State, Mode = Mode, MatchSeconds = MatchSeconds, Speed = Speed, BestOf = BestOf, Builders = Builders, FireMs = FireMs, Autos = Autos };
             m.Slots.Add(new LobbySlot { Slot = 0, Kind = SlotKind.Host, Name = HostName });
             foreach (Client c in m_Clients)
             {

@@ -23,8 +23,12 @@ namespace CoreSim
 
     public struct RobotExtra
     {
+        public Side Side;
         public bool IsHead;
         public bool IsBuilder;
+        public bool IsAuto;
+        public bool AutoStarted;
+        public bool AutoStopped;
         public int Hp;
         public int MaxHp;
         public int Magazine;
@@ -155,6 +159,7 @@ namespace CoreSim
                 if (!m_Agents.TryGetValue(r.Slot, out RobotAgent a)) continue;
                 a.Health.Set(r.Hp, r.HitsTaken);
                 a.Frozen = r.IsFrozen(t);
+                a.AutoStarted = r.AutoStarted && !r.AutoStopped;
                 ApplyPlateState(a, r.Destroyed, r.IsInvincible(t));
             }
         }
@@ -200,8 +205,12 @@ namespace CoreSim
             {
                 View.Robots[r.Slot] = new RobotExtra
                 {
+                    Side = r.Side,
                     IsHead = r.IsHead,
                     IsBuilder = r.IsBuilder,
+                    IsAuto = r.IsAuto,
+                    AutoStarted = r.AutoStarted,
+                    AutoStopped = r.AutoStopped,
                     Hp = r.Hp,
                     MaxHp = r.MaxHp,
                     Magazine = r.Magazine,
@@ -327,6 +336,23 @@ namespace CoreSim
 
         public bool TryConsumeShot(RobotAgent agent) => !Remote && Round != null && Round.TryFire(agent.Index);
 
+        /// <summary>その同盟のオートアタッカーのスロット (いなければ -1)。</summary>
+        public int AutoSlotOf(Side side)
+        {
+            foreach (var kv in View.Robots) if (kv.Value.IsAuto && kv.Value.Side == side) return kv.Key;
+            return -1;
+        }
+
+        /// <summary>オートアタッカーの始動 / 停止 (12.7)。ホストだけ。</summary>
+        public bool CommandAuto(Side side, bool start, out string reason)
+        {
+            reason = "";
+            if (Remote || Round == null) return false;
+            int slot = AutoSlotOf(side);
+            if (slot < 0) { reason = "オートアタッカーがいない"; return false; }
+            return start ? Round.StartAuto(slot, out reason) : Round.StopAuto(slot, out reason);
+        }
+
         /// <param name="targetSlot">ピットインを受ける機体 (発動した操縦者の機体)。</param>
         public bool ActivateSkill(Side side, SkillKind kind, out string reason, int targetSlot = -1)
         {
@@ -365,8 +391,12 @@ namespace CoreSim
             {
                 View.Robots[rs.Slot] = new RobotExtra
                 {
+                    Side = SideOf(MatchState.TeamOf(rs.Slot)),
                     IsHead = rs.IsHead,
                     IsBuilder = rs.IsBuilder,
+                    IsAuto = rs.IsAuto,
+                    AutoStarted = rs.AutoStarted,
+                    AutoStopped = rs.AutoStopped,
                     Hp = rs.Hp,
                     MaxHp = rs.MaxHp,
                     Magazine = rs.Magazine,
@@ -378,6 +408,7 @@ namespace CoreSim
                 };
                 if (m_Agents.TryGetValue(rs.Slot, out RobotAgent a))
                 {
+                    a.AutoStarted = rs.AutoStarted && !rs.AutoStopped;
                     if (rs.MaxHp > 0 && a.Health.MaxHp != rs.MaxHp)
                     {
                         a.Health = new HealthModel(rs.MaxHp, Config.HitDamage);

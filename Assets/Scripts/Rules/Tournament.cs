@@ -15,6 +15,7 @@ namespace CoreSim.Rules
     {
         Attacker = 0,
         Builder = 1,
+        AutoAttacker = 2,   // 完全自律 (14.1、12.7)。ミニディスクで攻撃、HP 200、補給なし
     }
 
     /// <summary>コンテナの出どころ (3.3 / 7.1)。回収できる条件が置き場ごとに違う。</summary>
@@ -55,6 +56,8 @@ namespace CoreSim.Rules
     public sealed class TournamentConfig
     {
         public int BuilderHp = 80;                // 6.3 表 6-2
+        public int AutoAttackerHp = 200;          // 6.3 表 6-2
+        public int MiniDiscsPerAlliance = 200;    // 6.2 オートアタッカー用。ラウンド中の補給なし (8.4)
         public int SpotVp = 10;                   // 5.3 コンテナをスポットに 1 個
         public int SpotRp = 30;                   // 5.4
         public int RowVp = 50;                    // 5.3 1 つの段に 4 個続けて
@@ -112,6 +115,10 @@ namespace CoreSim.Rules
         };
 
         public static SkillSpec Spec(SkillKind kind) => Skills[(int)kind];
+
+        /// <summary>総大将端末の疑似コマンド (スキルと同じ経路で送る): オートアタッカーの始動 / 停止 (12.7)。</summary>
+        public const byte AutoStartCommand = 20;
+        public const byte AutoStopCommand = 21;
     }
 
     public sealed class TournamentRobot
@@ -120,6 +127,13 @@ namespace CoreSim.Rules
         public Side Side;
         public RobotKind Kind;
         public bool IsBuilder => Kind == RobotKind.Builder;
+        public bool IsAuto => Kind == RobotKind.AutoAttacker;
+        /// <summary>オートアタッカー: 操縦手が動作開始の命令を送った (12.7)。</summary>
+        public bool AutoStarted;
+        /// <summary>オートアタッカー: 停止の命令を送った (もう一度始動はできない。12.7)。</summary>
+        public bool AutoStopped;
+        /// <summary>オートアタッカーなら始動済みで停止していないこと。それ以外は常に true。</summary>
+        public bool AutoActive => !IsAuto || (AutoStarted && !AutoStopped);
         public bool IsHead;
         public int MaxHp;
         public int Hp;
@@ -216,6 +230,8 @@ namespace CoreSim.Rules
         PitIn,
         RpBonus,
         RoundEnd,
+        AutoStart,
+        AutoStop,
         ContainerPlaced,
         SiteAcquired,
     }
@@ -278,7 +294,7 @@ namespace CoreSim.Rules
                 Side = side,
                 Kind = kind,
                 IsHead = isHead,
-                MaxHp = isHead ? Config.HeadAttackerHp : kind == RobotKind.Builder ? Config.BuilderHp : Config.AttackerHp,
+                MaxHp = isHead ? Config.HeadAttackerHp : kind == RobotKind.Builder ? Config.BuilderHp : kind == RobotKind.AutoAttacker ? Config.AutoAttackerHp : Config.AttackerHp,
             };
             r.Hp = r.MaxHp;
             m_Robots.Add(r);
@@ -317,6 +333,12 @@ namespace CoreSim.Rules
                     r.OnBunker = false;
                     r.HeadVpAwarded = 0;
                     r.PitInGranted = false;
+                    r.AutoStarted = r.AutoStopped = false;
+                    if (r.IsAuto)
+                    {
+                        r.Magazine = Config.MiniDiscsPerAlliance;   // ミニディスクは同盟のディスクとは別 (6.2)
+                        continue;
+                    }
                     int take = r.IsBuilder ? 0 : Math.Min(Config.MagazineCapacity, a.Discs);   // ビルダーは射出機構を持たない
                     r.Magazine = take;
                     a.Discs -= take;
@@ -536,7 +558,7 @@ namespace CoreSim.Rules
         {
             if (!Running || Finished) return false;
             TournamentRobot r = Find(slot);
-            if (r == null || r.IsBuilder || !r.CanAct(Time) || r.Magazine <= 0) return false;
+            if (r == null || r.IsBuilder || !r.CanAct(Time) || !r.AutoActive || r.Magazine <= 0) return false;
             r.Magazine--;
             r.Shots++;
             return true;
@@ -560,6 +582,7 @@ namespace CoreSim.Rules
                 TournamentRobot t = Find(targetSlot);
                 if (t == null || t.Side != side) { reason = "対象の機体がいない"; return false; }
                 if (t.Destroyed) { reason = "撃破中の機体はピットインできない"; return false; }
+                if (t.IsAuto) { reason = "オートアタッカーは補給できない (8.4)"; return false; }
                 if (t.PitInGranted) { reason = "すでに発動済み"; return false; }
             }
             return true;
@@ -634,6 +657,11 @@ namespace CoreSim.Rules
             TournamentRobot r = Find(slot);
             if (r == null || r.Destroyed) return false;
             TournamentAlliance a = Of(r.Side);
+            if (r.IsAuto)
+            {
+                Foul(r.Side, r.Slot, "オートアタッカーが手動補給エリアに入った");
+                return false;
+            }
             if (!r.PitInGranted)
             {
                 Foul(r.Side, r.Slot, "ピットインなしで手動補給エリアに入った");
@@ -645,6 +673,32 @@ namespace CoreSim.Rules
             r.Magazine += take;
             a.Discs -= take;
             Emit(TournamentEventKind.PitIn, r.Side, r.Slot, take, $"ピットイン: ディスク {take} 枚を装填 (20 秒停止)");
+            return true;
+        }
+
+        /// <summary>オートアタッカーの始動 (12.7)。ラウンド開始後に 1 回だけ。停止した後は始動できない。</summary>
+        public bool StartAuto(int slot, out string reason)
+        {
+            reason = "";
+            TournamentRobot r = Find(slot);
+            if (r == null || !r.IsAuto) { reason = "オートアタッカーではない"; return false; }
+            if (!Running || Finished) { reason = "ラウンド外"; return false; }
+            if (r.AutoStopped) { reason = "停止した後は始動できない (12.7)"; return false; }
+            if (r.AutoStarted) { reason = "始動済み"; return false; }
+            r.AutoStarted = true;
+            Emit(TournamentEventKind.AutoStart, r.Side, r.Slot, 0, "オートアタッカー 始動");
+            return true;
+        }
+
+        /// <summary>オートアタッカーの停止 (緊急時。12.7)。以後は動かない。</summary>
+        public bool StopAuto(int slot, out string reason)
+        {
+            reason = "";
+            TournamentRobot r = Find(slot);
+            if (r == null || !r.IsAuto) { reason = "オートアタッカーではない"; return false; }
+            if (!r.AutoStarted || r.AutoStopped) { reason = "動いていない"; return false; }
+            r.AutoStopped = true;
+            Emit(TournamentEventKind.AutoStop, r.Side, r.Slot, 0, "オートアタッカー 停止 (このラウンドは再始動なし)");
             return true;
         }
 

@@ -168,6 +168,14 @@ namespace CoreSim.Net
             m_Transport.Send(m_Writer.Buffer, m_Writer.Length, m_Server);
         }
 
+        /// <summary>オートアタッカーのプログラムをホストへ送る (ロビーで、編集するたびに)。</summary>
+        public void SendProgram(string text)
+        {
+            if (State != Status.Connected) return;
+            NetCodec.WriteProgram(m_Writer, text ?? "", m_Token);
+            m_Transport.Send(m_Writer.Buffer, m_Writer.Length, m_Server);
+        }
+
         public void SendSkill(byte kind)
         {
             if (State != Status.Connected) return;

@@ -31,6 +31,8 @@ namespace CoreSim
         Attacker,
         /// <summary>ビルダー (HP 80、射出なし、ブロックとコンテナを運ぶ)。</summary>
         Builder,
+        /// <summary>オートアタッカー (HP 200、完全自律。プログラムで動く。人は始動と停止と観戦)。</summary>
+        AutoAttacker,
     }
 
     public enum SpeedPreset
@@ -60,6 +62,8 @@ namespace CoreSim
         public Ruleset Rules = Ruleset.Casual;
         public int RobotsPerSide = 3;       // 1..4 (予選はアタッカー + ビルダーで 4 台)
         public int BuildersPerSide = 1;     // 0..2 (RobotsPerSide のうちビルダーにする台数。アタッカーは 1 台以上)
+        public int AutosPerSide = 0;        // 0..1 各同盟のオートアタッカー (10.6: 1 台まで。アタッカー + ビルダーとは別枠)
+        public string AutoProgramText = "";   // 自分のオートアタッカーのプログラム (空なら既定)
         public int BestOf = 1;              // 1 / 3 / 5
         public PlayerRole Role = PlayerRole.Head;   // 自分の機体
         public bool PlayerIsRed;            // false = 青同盟
@@ -106,6 +110,8 @@ namespace CoreSim
             PlayerPrefs.SetInt("bestof", BestOf);
             PlayerPrefs.SetInt("role", (int)Role);
             PlayerPrefs.SetInt("builders", BuildersPerSide);
+            PlayerPrefs.SetInt("autos", AutosPerSide);
+            PlayerPrefs.SetString("autoprog", AutoProgramText ?? "");
             PlayerPrefs.SetInt("red", PlayerIsRed ? 1 : 0);
             PlayerPrefs.SetInt("mag", Magazine);
             PlayerPrefs.SetInt("fire", Mathf.RoundToInt(FireInterval * 1000f));
@@ -129,8 +135,10 @@ namespace CoreSim
             s.Rules = (Ruleset)PlayerPrefs.GetInt("rules", 0);
             s.RobotsPerSide = Mathf.Clamp(PlayerPrefs.GetInt("perside", 3), 1, 4);
             s.BuildersPerSide = Mathf.Clamp(PlayerPrefs.GetInt("builders", 1), 0, 2);
+            s.AutosPerSide = Mathf.Clamp(PlayerPrefs.GetInt("autos", 0), 0, 1);
+            s.AutoProgramText = PlayerPrefs.GetString("autoprog", "");
             s.BestOf = PlayerPrefs.GetInt("bestof", 1);
-            s.Role = (PlayerRole)Mathf.Clamp(PlayerPrefs.GetInt("role", PlayerPrefs.GetInt("head", 1) != 0 ? 0 : 1), 0, 2);
+            s.Role = (PlayerRole)Mathf.Clamp(PlayerPrefs.GetInt("role", PlayerPrefs.GetInt("head", 1) != 0 ? 0 : 1), 0, 3);
             s.PlayerIsRed = PlayerPrefs.GetInt("red", 0) != 0;
             s.Magazine = Mathf.Clamp(PlayerPrefs.GetInt("mag", 50), 10, 200);
             s.FireInterval = Mathf.Clamp(PlayerPrefs.GetInt("fire", 600) / 1000f, 0.1f, 2f);

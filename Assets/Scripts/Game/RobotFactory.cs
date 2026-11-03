@@ -102,6 +102,12 @@ namespace CoreSim
                     Visuals.Create("pole", PrimitiveType.Cylinder, shooterRoot.transform,
                                    Tuning.RosToUnity(px, py, 0.315f), Quaternion.identity, new Vector3(0.02f, 0.25f, 0.02f), gray);
                 }
+                if (kind == RobotKind.AutoAttacker)
+                {
+                    // オートアタッカーの印: センサーのドーム (見た目だけ)
+                    Visuals.Create("dome", PrimitiveType.Sphere, root.transform, Tuning.RosToUnity(-0.2f, 0f, 0.5f), Quaternion.identity,
+                                   new Vector3(0.2f, 0.12f, 0.2f), MaterialLibrary.Color(new Color(0.2f, 0.85f, 0.75f), 0.6f, 0.3f));
+                }
                 var muzzleGo = new GameObject("muzzle");
                 muzzleGo.transform.SetParent(shooterRoot.transform, false);
                 muzzleGo.transform.localPosition = Tuning.RosToUnity(0.21f, 0f, 0.055f);
@@ -227,6 +233,7 @@ namespace CoreSim
             {
                 shooter = root.AddComponent<Shooter>();
                 shooter.Interval = settings.FireInterval;
+                shooter.Mini = kind == RobotKind.AutoAttacker;
                 shooter.Muzzle = muzzle;
                 shooter.Rollers = rollers.ToArray();
             }

@@ -95,7 +95,7 @@ namespace CoreSim
                 _ => "遊び方: 練習 (時間無制限)",
             });
             m_Summary.text = tournament
-                ? $"赤 {m_Settings.RobotsPerSide} 台 vs 青 {m_Settings.RobotsPerSide} 台 (ビルダー各 {m_Settings.EffectiveBuilders} 台)、{BestOfText(m_Settings.BestOf)}\n" +
+                ? $"赤 {m_Settings.RobotsPerSide} 台 vs 青 {m_Settings.RobotsPerSide} 台 (ビルダー各 {m_Settings.EffectiveBuilders} 台、オート各 {(m_Settings.Role == PlayerRole.AutoAttacker ? 1 : m_Settings.AutosPerSide)} 台)、{BestOfText(m_Settings.BestOf)}\n" +
                   $"自分: {(m_Settings.PlayerIsRed ? "赤" : "青")}同盟の{RoleName(m_Settings.Role)}、弾倉 {m_Settings.Magazine} 枚\n" +
                   $"機体の速さ: {(m_Settings.Speed == SpeedPreset.Game ? "ゲーム" : "リアル")}、連射 {m_Settings.FireInterval:0.##} 秒"
                 : $"{(m_Settings.Mode == GameMode.SoloVsCpu ? $"CPU {m_Settings.CpuCount} 台、" : "")}" +
@@ -103,11 +103,12 @@ namespace CoreSim
                   $"機体の速さ: {(m_Settings.Speed == SpeedPreset.Game ? "ゲーム" : "リアル")}、連射 {m_Settings.FireInterval:0.##} 秒";
         }
 
-        public static string RoleName(PlayerRole role) => role switch { PlayerRole.Builder => "ビルダー", PlayerRole.Attacker => "アタッカー", _ => "ヘッドアタッカー" };
+        public static string RoleName(PlayerRole role) => role switch { PlayerRole.Builder => "ビルダー", PlayerRole.Attacker => "アタッカー", PlayerRole.AutoAttacker => "オートアタッカー", _ => "ヘッドアタッカー" };
         public static string RoleText(PlayerRole role) => role switch
         {
             PlayerRole.Builder => "自分: ビルダー (HP 80、射出なし。ブロックとコンテナを運ぶ)",
             PlayerRole.Attacker => "自分: アタッカー (HP 60、撃破から 30 秒で復活)",
+            PlayerRole.AutoAttacker => "自分: オートアタッカー (HP 200、プログラムで自律。人は始動・停止・スキル・観戦)",
             _ => "自分: ヘッドアタッカー (HP 300、毎秒 5 回復、復活なし)",
         };
         public static string BestOfText(int bestOf) => bestOf switch { 3 => "準決勝形式 (2 本先取)", 5 => "決勝形式 (3 本先取)", _ => "予選形式 (1 ラウンド)" };

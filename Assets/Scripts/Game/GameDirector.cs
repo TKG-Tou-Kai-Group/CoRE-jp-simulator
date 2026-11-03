@@ -127,7 +127,22 @@ namespace CoreSim
         public void OpenSettings()
         {
             DestroyMenus();
-            m_Settings = SettingsView.Create(m_Canvas.transform, Settings, () => { Settings.Save(); ShowMenu(); });
+            m_Settings = SettingsView.Create(m_Canvas.transform, Settings, () => { Settings.Save(); ShowMenu(); }, OpenProgramEditor);
+        }
+
+        private ProgramView m_ProgramView;
+
+        /// <summary>オートアタッカーのプログラムの編集画面を今の画面の上に出す (設定・ロビーから)。</summary>
+        public void OpenProgramEditor()
+        {
+            if (m_ProgramView != null) return;
+            m_ProgramView = ProgramView.Create(m_Canvas.transform, Settings, () =>
+            {
+                if (m_ProgramView != null) Destroy(m_ProgramView.gameObject);
+                m_ProgramView = null;
+                Settings.Save();
+                SendProgramNow();   // 参加者なら編集した内容をホストへ
+            });
         }
 
         private void EnsureMenuCamera()
@@ -229,9 +244,18 @@ namespace CoreSim
             }
         }
 
+        private bool m_ProgramSent;
+
+        /// <summary>参加者: 編集したオートアタッカーのプログラムをホストへ送り直す。</summary>
+        public void SendProgramNow()
+        {
+            if (m_Client != null && m_Client.State == ClientSession.Status.Connected) m_Client.SendProgram(Settings.AutoProgramText ?? "");
+        }
+
         public void JoinGame(string address)
         {
             CloseNetwork(keepMenu: true);
+            m_ProgramSent = false;
             // "host:port" 形式 (Secure Share Net の公開アドレスなど) ならポートはそちらを優先する
             int port = Settings.NetPort;
             string host = (address ?? string.Empty).Trim();
@@ -343,6 +367,12 @@ namespace CoreSim
                     HandleClientLost(m_Client.RejectReason);
                     return;
                 }
+                if (!m_ProgramSent && m_Client.State == ClientSession.Status.Connected)
+                {
+                    // 参加したらオートアタッカーのプログラムをホストへ (編集したら SendProgramNow で送り直す)
+                    m_ProgramSent = true;
+                    m_Client.SendProgram(Settings.AutoProgramText ?? "");
+                }
                 if (m_NetMenu != null)
                 {
                     string status = m_Client.State == ClientSession.Status.Connecting
@@ -389,7 +419,7 @@ namespace CoreSim
             }
         }
 
-        private static bool kind_ok(byte kind) => kind < TournamentConfig.Skills.Length;
+        private static bool kind_ok(byte kind) => kind < TournamentConfig.Skills.Length || kind == TournamentConfig.AutoStartCommand || kind == TournamentConfig.AutoStopCommand;
 
         private void HandleClientLost(string reason)
         {
@@ -523,6 +553,7 @@ namespace CoreSim
             var slots = new List<(byte slot, SlotKind kind, string name, bool passive)>();
             int bestOf = Settings.BestOf;
             int buildersPerSide = 0;
+            int autosPerSide = 0;
             if (Role == NetRole.Host)
             {
                 LobbyMessage lobby = m_Host.BuildLobby();
@@ -532,6 +563,7 @@ namespace CoreSim
                 }
                 bestOf = m_Host.BestOf;
                 buildersPerSide = tournament ? m_Host.Builders : 0;
+                autosPerSide = tournament ? Mathf.Clamp(m_Host.Autos, 0, 1) : 0;
                 Match = new MatchState
                 {
                     Mode = m_Host.Mode == 1 ? MatchMode.Team : MatchMode.Individual,
@@ -549,15 +581,20 @@ namespace CoreSim
                 // 偶数番 = 青、奇数番 = 赤。各同盟の最小番号がヘッドアタッカー、大きい番号からビルダー。
                 int perSide = Mathf.Clamp(Settings.RobotsPerSide, 1, 4);
                 int builders = Settings.EffectiveBuilders;
+                int autos = Mathf.Clamp(Settings.AutosPerSide, 0, 1);
                 if (Settings.Role == PlayerRole.Builder && builders == 0) { builders = 1; if (perSide < 2) perSide = 2; }
+                if (Settings.Role == PlayerRole.AutoAttacker) autos = 1;
+                int total = perSide + autos;   // オートアタッカーはアタッカー + ビルダーとは別枠 (10.6)
                 int rank = Settings.Role switch
                 {
-                    PlayerRole.Builder => perSide - 1,                       // 同盟内で最後の番号 = ビルダー
+                    PlayerRole.AutoAttacker => total - 1,                    // 同盟内で最後の番号 = オート
+                    PlayerRole.Builder => perSide - 1,                       // その手前 = ビルダー
                     PlayerRole.Attacker => perSide - builders >= 2 ? 1 : 0,  // 2 台目 (アタッカーが 2 台以上いるとき)
                     _ => 0,
                 };
                 int playerSlot = (Settings.PlayerIsRed ? 1 : 0) + rank * 2;
-                for (int i = 0; i < perSide * 2; i++)
+                autosPerSide = autos;
+                for (int i = 0; i < total * 2; i++)
                 {
                     bool isPlayer = i == playerSlot;
                     string side = MatchState.TeamOf(i) == Team.Blue ? "青" : "赤";
@@ -634,8 +671,9 @@ namespace CoreSim
                     ? ArenaBuilder.Field2027.Spawn(team == Team.Red ? "red" : "blue", sideCount[team]++)
                     : Tuning.StartPoses[slot.slot];
                 RobotKind kind = tournament
-                    ? KindForSlot(slot.slot, slotNumbers, buildersPerSide)
-                    : (slot.kind == SlotKind.Host && Settings.Role == PlayerRole.Builder ? RobotKind.Builder : RobotKind.Attacker);
+                    ? KindForSlot(slot.slot, slotNumbers, buildersPerSide, autosPerSide)
+                    : (slot.kind == SlotKind.Host && Settings.Role == PlayerRole.Builder ? RobotKind.Builder
+                       : slot.kind == SlotKind.Host && Settings.Role == PlayerRole.AutoAttacker ? RobotKind.AutoAttacker : RobotKind.Attacker);
                 RobotAgent agent = RobotFactory.Create(slot.slot, pose, Settings, kind);
                 if (agent.Lift != null) agent.Lift.Registry = ArenaBuilder.Field2027?.Props;
                 agent.DisplayName = slot.name;
@@ -643,6 +681,24 @@ namespace CoreSim
                 if (tournament && (slot.slot == blueHead || slot.slot == redHead))
                 {
                     agent.MarkAsHead();
+                }
+                if (agent.IsAuto)
+                {
+                    // オートアタッカー: 人のものでもプログラムが操縦する。人は始動・停止・スキルと観戦だけ
+                    string text = slot.kind == SlotKind.Host ? Settings.AutoProgramText
+                                : slot.kind == SlotKind.Human && Role == NetRole.Host ? m_Host.ProgramOf(slot.slot) : "";
+                    AutoProgram program = string.IsNullOrWhiteSpace(text) ? AutoProgram.Default() : AutoProgram.Parse(text);
+                    if (program.Rules.Count == 0) program = AutoProgram.Default();
+                    var auto = new AutoAttackerSource { Self = agent, Robots = () => m_Robots, Tournament = Tournament, Program = program };
+                    if (slot.kind == SlotKind.Host || (slot.kind == SlotKind.Human && Role != NetRole.Host))
+                    {
+                        agent.IsPlayer = true;
+                        auto.Operator = NewLocalSource(localPlayers++);
+                    }
+                    agent.Source = auto;
+                    agent.ResetToStart();
+                    m_Robots.Add(agent);
+                    continue;
                 }
                 switch (slot.kind)
                 {
@@ -712,7 +768,7 @@ namespace CoreSim
                 }
                 bool split = Role == NetRole.None && !tournament && Settings.Mode == GameMode.LocalVersus;
                 Rect rect = split ? new Rect(players * 0.5f, 0f, 0.5f, 1f) : new Rect(0f, 0f, 1f, 1f);
-                PlayerView view = PlayerView.Create(agent, agent.Source as PlayerCommandSource, rect, players, Settings, m_Canvas.transform);
+                PlayerView view = PlayerView.Create(agent, PlayerInputFor(agent), rect, players, Settings, m_Canvas.transform);
                 view.transform.SetParent(transform, false);
                 if (tournament)
                 {
@@ -752,15 +808,20 @@ namespace CoreSim
         /// 大会ルールの種別の割り当て。同盟 (番号の偶奇) ごとに番号順に並べ、最初の 1 台がヘッドアタッカー、
         /// 最後の buildersPerSide 台がビルダー (アタッカーが 1 台は残るように丸める)。ホストとクライアントで同じ計算をする。
         /// </summary>
-        public static RobotKind KindForSlot(int slot, IReadOnlyList<int> allSlots, int buildersPerSide)
+        public static RobotKind KindForSlot(int slot, IReadOnlyList<int> allSlots, int buildersPerSide, int autosPerSide = 0)
         {
             Team team = MatchState.TeamOf(slot);
             var mine = new List<int>();
             foreach (int s in allSlots) if (MatchState.TeamOf(s) == team) mine.Add(s);
             mine.Sort();
-            int builders = Mathf.Clamp(buildersPerSide, 0, Mathf.Max(0, mine.Count - 1));
+            int n = mine.Count;
+            int autos = Mathf.Clamp(autosPerSide, 0, Mathf.Max(0, n - 1));          // 最後の番号 = オートアタッカー (1 台まで)
+            int builders = Mathf.Clamp(buildersPerSide, 0, Mathf.Max(0, n - 1 - autos));
             int rank = mine.IndexOf(slot);
-            return rank >= 0 && rank >= mine.Count - builders ? RobotKind.Builder : RobotKind.Attacker;
+            if (rank < 0) return RobotKind.Attacker;
+            if (rank >= n - autos) return RobotKind.AutoAttacker;
+            if (rank >= n - autos - builders) return RobotKind.Builder;
+            return RobotKind.Attacker;
         }
 
         private PlayerCommandSource NewLocalSource(int playerIndex)
@@ -774,6 +835,7 @@ namespace CoreSim
         {
             if (agent == null) return null;
             if (Role == NetRole.Client) return m_ClientInput;
+            if (agent.Source is AutoAttackerSource auto) return auto.Operator;
             return agent.Source as PlayerCommandSource;
         }
 
@@ -783,6 +845,13 @@ namespace CoreSim
         private void ActivateSkillFor(RobotAgent agent, SkillKind kind)
         {
             if (Tournament == null || Tournament.Remote || agent == null) return;
+            if ((byte)kind == TournamentConfig.AutoStartCommand || (byte)kind == TournamentConfig.AutoStopCommand)
+            {
+                // オートアタッカーの始動 / 停止 (12.7)。同盟の人なら誰でも送れる
+                bool ok = Tournament.CommandAuto(TournamentController.SideOf(agent.Team), (byte)kind == TournamentConfig.AutoStartCommand, out _);
+                if (ok) Audio.PlaySkill(); else Audio.PlayClick();
+                return;
+            }
             if (Tournament.ActivateSkill(TournamentController.SideOf(agent.Team), kind, out string reason, agent.Index))
             {
                 Audio.PlaySkill();
@@ -947,6 +1016,7 @@ namespace CoreSim
                     Hits = (ushort)r.Health.Hits,
                     IsHead = r.IsHeadAttacker,
                     IsBuilder = r.IsBuilder,
+                    IsAuto = r.IsAuto,
                     Lift = r.Lift != null ? r.Lift.Height : 0f,
                     Held = r.Lift != null && r.Lift.Held != null ? r.Lift.Held.Id : (ushort)0,
                 };
@@ -958,6 +1028,8 @@ namespace CoreSim
                     rs.FrozenFor = x.FrozenFor;
                     rs.MaxHp = (ushort)x.MaxHp;
                     rs.PitInGranted = x.PitInGranted;
+                    rs.AutoStarted = x.AutoStarted;
+                    rs.AutoStopped = x.AutoStopped;
                 }
                 s.Robots.Add(rs);
             }
@@ -966,7 +1038,7 @@ namespace CoreSim
                 if (d == null || d.Body == null) continue;
                 Vector3 p = d.transform.position;
                 Vector3 v = d.Body.linearVelocity;
-                s.Discs.Add(new DiscState { Id = d.Id, Px = p.x, Py = p.y, Pz = p.z, Vx = v.x, Vy = v.y, Vz = v.z });
+                s.Discs.Add(new DiscState { Id = d.Id, Mini = d.Mini, Px = p.x, Py = p.y, Pz = p.z, Vx = v.x, Vy = v.y, Vz = v.z });
                 if (s.Discs.Count >= 255) break;
             }
             // ブロック・コンテナ: 動いたものだけ毎回、全部を 1 秒に 1 回 (落として止まったものを取りこぼさない)
@@ -1059,7 +1131,7 @@ namespace CoreSim
                 {
                     Team team = MatchState.TeamOf(rs.Slot);
                     Pose pose = Tuning.StartPoses[Mathf.Clamp(rs.Slot, 0, Tuning.StartPoses.Length - 1)];
-                    agent = RobotFactory.Create(rs.Slot, pose, Settings, rs.IsBuilder ? RobotKind.Builder : RobotKind.Attacker);
+                    agent = RobotFactory.Create(rs.Slot, pose, Settings, rs.IsBuilder ? RobotKind.Builder : rs.IsAuto ? RobotKind.AutoAttacker : RobotKind.Attacker);
                     if (agent.Lift != null) agent.Lift.Registry = ArenaBuilder.Field2027?.Props;
                     agent.DisplayName = LobbyName(rs.Slot);
                     agent.IsPlayer = rs.Slot == m_Client.Slot;
@@ -1127,7 +1199,7 @@ namespace CoreSim
                 }
                 else
                 {
-                    m_Ghosts[ds.Id] = GhostDisc.Create(pos, vel);
+                    m_Ghosts[ds.Id] = GhostDisc.Create(pos, vel, ds.Mini);
                 }
             }
             var gone = new List<int>();

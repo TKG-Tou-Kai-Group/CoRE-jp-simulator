@@ -10,7 +10,7 @@ namespace CoreSim
         private readonly System.Collections.Generic.List<(Button button, System.Func<string> label)> m_Rows =
             new System.Collections.Generic.List<(Button, System.Func<string>)>();
 
-        public static SettingsView Create(Transform parent, GameSettings settings, System.Action onBack)
+        public static SettingsView Create(Transform parent, GameSettings settings, System.Action onBack, System.Action onEditProgram = null)
         {
             RectTransform root = UiKit.Panel(parent, "Settings", new Color(0.05f, 0.07f, 0.1f, 0.7f),
                                              Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
@@ -35,11 +35,13 @@ namespace CoreSim
             view.Row(content, size, () => $"ひとりで対戦のときの CPU の数: {s.CpuCount} 台", () => s.CpuCount = s.CpuCount % 3 + 1);
             view.Row(content, size, () => $"試合時間: {s.MatchSeconds} 秒", () => s.MatchSeconds = s.MatchSeconds switch { 60 => 120, 120 => 180, _ => 60 });
 
-            view.Section(content, "大会ルール (CoRE-1 ルールブック V27.1.3、アタッカーとビルダー)");
+            view.Section(content, "大会ルール (CoRE-1 ルールブック V27.1.3、アタッカー・ビルダー・オートアタッカー)");
             view.Row(content, size, () => $"各同盟の機体: {s.RobotsPerSide} 台 (うちビルダー {s.EffectiveBuilders} 台。自分以外は CPU)", () => s.RobotsPerSide = s.RobotsPerSide % 4 + 1);
             view.Row(content, size, () => $"各同盟のビルダー: {s.EffectiveBuilders} 台 (アタッカーは 1 台以上残す)", () => s.BuildersPerSide = (s.BuildersPerSide + 1) % 3);
+            view.Row(content, size, () => $"各同盟のオートアタッカー: {s.AutosPerSide} 台 (上の台数とは別枠。1 台まで。HP 200、ミニディスク 200 枚、完全自律)", () => s.AutosPerSide = (s.AutosPerSide + 1) % 2);
+            view.Row(content, size, () => "オートアタッカーのプログラムを編集 ▶ (自分の機体と、自分がホストのときの CPU 以外)", () => onEditProgram?.Invoke());
             view.Row(content, size, () => $"試合: {MenuView.BestOfText(s.BestOf)}", () => s.BestOf = s.BestOf switch { 1 => 3, 3 => 5, _ => 1 });
-            view.Row(content, size, () => MenuView.RoleText(s.Role), () => s.Role = (PlayerRole)(((int)s.Role + 1) % 3));
+            view.Row(content, size, () => MenuView.RoleText(s.Role), () => s.Role = (PlayerRole)(((int)s.Role + 1) % 4));
             view.Row(content, size, () => s.PlayerIsRed ? "自分の同盟: 赤 (奇数番)" : "自分の同盟: 青 (偶数番)", () => s.PlayerIsRed = !s.PlayerIsRed);
             view.Row(content, size, () => $"弾倉: {s.Magazine} 枚 (同盟のディスク 400 枚から装填。ルールに無い値)",
                      () => s.Magazine = s.Magazine switch { 30 => 50, 50 => 80, 80 => 120, _ => 30 });

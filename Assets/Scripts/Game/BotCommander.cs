@@ -24,6 +24,14 @@ namespace CoreSim
             if (m_LastBaseHp >= 0 && me.BaseHp < m_LastBaseHp) m_BaseHitAt = t;
             m_LastBaseHp = me.BaseHp;
 
+            // 0. オートアタッカーはラウンド開始 2 秒後に始動する (12.7)
+            if (t > 2f)
+            {
+                foreach (TournamentRobot r in me.Robots)
+                {
+                    if (r.IsAuto && !r.AutoStarted && !r.AutoStopped) round.StartAuto(r.Slot, out _);
+                }
+            }
             // 1. ピットインは弾切れの CPU が自分で申請する (BotCommandSource)。総大将は出さない
             // 2. 同盟のディスクが尽きそうならサプライ
             if (me.Discs < 40 && round.CanActivate(Side, SkillKind.Supply, out _))

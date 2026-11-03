@@ -44,6 +44,8 @@ namespace CoreSim
                 else if (kb.digit7Key.isPressed) pressed = 6;
                 else if (kb.digit8Key.isPressed) pressed = 7;
                 else if (kb.digit9Key.isPressed) pressed = 8;
+                else if (kb.digit0Key.isPressed) pressed = CoreSim.Rules.TournamentConfig.AutoStartCommand;   // オートアタッカー 始動
+                else if (kb.minusKey.isPressed) pressed = CoreSim.Rules.TournamentConfig.AutoStopCommand;     // 停止 (緊急時)
             }
             bool dpad = false, activate = false;
             foreach (Gamepad pad in MyPads())

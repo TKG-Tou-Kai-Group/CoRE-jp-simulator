@@ -27,6 +27,15 @@ namespace CoreSim
         /// </summary>
         public float BuilderEngageRange = 4f;
         public float BuilderKeepRange = 7f;
+
+        /// <summary>オートアタッカーのプログラムからの指示。Free は CPU 本来の判断。</summary>
+        public enum BotDirective { Free, Engage, AttackBase, GoTo, Hold, Retreat }
+        public BotDirective Directive = BotDirective.Free;
+        public Vector3 DirectivePoint;
+        public float DirectiveRange = 5f;
+        public Rules.AutoTarget TargetPolicy = Rules.AutoTarget.Nearest;
+        /// <summary>オートアタッカー: ピットインを申請せず、弾切れでもプログラム通りに動く。ログは AutoAttackerSource が出す。</summary>
+        public bool IsAutoProgram;
         /// <summary>大会ルールのとき。陣地攻撃と補給の判断に使う。</summary>
         public TournamentController Tournament;
 
@@ -91,7 +100,7 @@ namespace CoreSim
             m_Current = Think();
             m_Current = Unstick(m_Current);
             m_Current = GuardZones(m_Current);
-            BotLog.Maybe(Self, this, ref m_NextLogTime);
+            if (!IsAutoProgram) BotLog.Maybe(Self, this, ref m_NextLogTime);
             return m_Current;
         }
 
@@ -132,7 +141,7 @@ namespace CoreSim
                     m_Mode = "ピットイン: 補給エリアへ";
                     return Steer(t, Tournament.Field.SupplyPoint(TournamentController.SideName(me.Side)), 0.4f, blockedAhead, blockedLeft, blockedRight);
                 }
-                if (me != null && me.Magazine == 0)
+                if (me != null && me.Magazine == 0 && !IsAutoProgram)
                 {
                     // 弾切れになったら自分でピットインを申請する (味方が人の同盟でも同じ。同盟の RP を 20 使う)。
                     // 許可が出るまでは、許可がないのに入ると反則なので、自同盟のスタートゾーンの内側で待つ
@@ -147,10 +156,12 @@ namespace CoreSim
                     m_Mode = "弾切れ: ピットインを申請して待機";
                     return Steer(t, Tournament.Field.Spawn(TournamentController.SideName(me.Side), 0).position, 1.0f, blockedAhead, blockedLeft, blockedRight);
                 }
-                if (me != null && Tournament.View.BaseAttackActive(Tournament.Round.Config))
+                bool wantBase = Directive == BotDirective.AttackBase ||
+                                (Directive == BotDirective.Free && (target == null || Random.value < 0.35f));
+                if (me != null && wantBase && Tournament.View.BaseAttackActive(Tournament.Round.Config))
                 {
                     string enemySide = TournamentController.SideName(Rules.TournamentRound.Opposite(me.Side));
-                    if (!Tournament.Round.OpponentOf(me.Side).BaseDestroyed && (target == null || Random.value < 0.35f))
+                    if (!Tournament.Round.OpponentOf(me.Side).BaseDestroyed)
                     {
                         BasePanel panel = NearestPanel(enemySide, t.position);
                         if (panel != null)
@@ -174,6 +185,36 @@ namespace CoreSim
                     }
                 }
             }
+            // プログラムの指示: 移動 / 退避 / 待機 (着いたら待機し、射程内の相手を撃つ)
+            if (Directive == BotDirective.Retreat || Directive == BotDirective.GoTo)
+            {
+                Vector3 goal = Directive == BotDirective.Retreat ? RetreatPoint() : DirectivePoint;
+                Vector3 flat = goal - t.position;
+                flat.y = 0f;
+                if (flat.magnitude > 1.2f)
+                {
+                    m_Mode = (Directive == BotDirective.Retreat ? "退避" : "移動") + $" ({goal.x:F1},{goal.z:F1}) へ {flat.magnitude:F1} m";
+                    return Steer(t, goal, 1.0f, blockedAhead, blockedLeft, blockedRight);
+                }
+            }
+            if (Directive == BotDirective.Hold || Directive == BotDirective.GoTo || Directive == BotDirective.Retreat)
+            {
+                m_Mode = "待機";
+                if (target != null)
+                {
+                    Vector3 toT = target.transform.position - t.position;
+                    toT.y = 0f;
+                    float distT = toT.magnitude;
+                    float bearingT = SignedBearing(t, toT) + m_AimOffsetDeg;
+                    cmd.Turn = Mathf.Clamp(bearingT / 30f, -1f, 1f);
+                    bool clearT = !Physics.Raycast(t.position + Vector3.up * 0.45f, toT.normalized, distT - 0.8f,
+                                                   ~((1 << Tuning.LayerDisc) | (1 << Tuning.LayerMinimapOnly) | (1 << Tuning.LayerRobot)));
+                    cmd.Fire = !Passive && Mathf.Abs(bearingT - m_AimOffsetDeg) < FireConeDeg && distT < FireRange && clearT;
+                    m_Mode = $"待機して {target.DisplayName} を狙う {distT:F1} m" + (clearT ? "" : " (遮られている)");
+                }
+                return cmd;
+            }
+
             if (target == null)
             {
                 // 狙う相手がいなければフィールド中央へ (経路で)。着いたら中央を向いて少し横に動きながら待つ
@@ -193,6 +234,7 @@ namespace CoreSim
                 Vector3 to = target.transform.position - t.position;
                 to.y = 0f;
                 float dist = to.magnitude;
+                float range = Directive == BotDirective.Engage ? DirectiveRange : PreferredRange;
                 int losMask = ~((1 << Tuning.LayerDisc) | (1 << Tuning.LayerMinimapOnly) | (1 << Tuning.LayerRobot));
                 Vector3 dir = to.normalized;
                 // 射線 (装甲板の高さ) と、走って行ける線 (バンパーの高さとバンカーの高さ)。射線はバンカーや
@@ -205,18 +247,18 @@ namespace CoreSim
                 {
                     // 遠い・真っ直ぐ行けないときは NavMesh の経路で近づく (スロープの先の谷などへ落ちない)
                     m_Mode = $"{target.DisplayName} へ接近 {dist:F1} m" + (clearDrive ? "" : " (直進不可)") + (blockedAhead ? " 前方に障害物" : "");
-                    return Steer(t, target.transform.position, clearDrive ? PreferredRange : 1.5f, blockedAhead, blockedLeft, blockedRight);
+                    return Steer(t, target.transform.position, clearDrive ? range : 1.5f, blockedAhead, blockedLeft, blockedRight);
                 }
                 float bearing = SignedBearing(t, to) + m_AimOffsetDeg;
                 cmd.Turn = Mathf.Clamp(bearing / 30f, -1f, 1f);
                 m_Mode = $"{target.DisplayName} と交戦 {dist:F1} m" + (clearLine ? "" : " (遮られている)") + (blockedAhead ? " 前方に障害物" : "");
 
                 float forward = 0f;
-                if (dist > PreferredRange + 1.5f) forward = 1f;
-                else if (dist < PreferredRange - 1.5f) forward = -0.6f;
+                if (dist > range + 1.5f) forward = 1f;
+                else if (dist < range - 1.5f) forward = -0.6f;
                 float strafe = Mathf.Abs(bearing) < 40f ? m_StrafeSign * 0.7f : 0f;
                 cmd.Move = new Vector2(strafe, forward);
-                cmd.Turbo = dist > PreferredRange + 4f;
+                cmd.Turbo = dist > range + 4f;
 
                 bool aligned = Mathf.Abs(bearing - m_AimOffsetDeg) < FireConeDeg && dist < FireRange;
                 cmd.Fire = !Passive && aligned && clearLine && Random.value < Mathf.Lerp(0.5f, 1f, Skill);
@@ -313,6 +355,47 @@ namespace CoreSim
         /// 狙う相手。いちばん近い敵のアタッカー / ヘッド。ビルダーは近く (<see cref="BuilderEngageRange"/>) に来たときだけ、
         /// または敵にアタッカーがいないときだけ狙う。
         /// </summary>
+        /// <summary>自同盟のスタートゾーン (大会ルール) か開始位置。</summary>
+        private Vector3 RetreatPoint()
+        {
+            if (Tournament != null && Tournament.Field != null && Tournament.Round != null)
+            {
+                Rules.TournamentRobot me = Tournament.Round.Find(Self.Index);
+                if (me != null) return Tournament.Field.Spawn(TournamentController.SideName(me.Side), 0).position;
+            }
+            return Self.StartPosition;
+        }
+
+        private bool IsEnemy(RobotAgent r)
+        {
+            if (r == null || r == Self || r.IsKnockedOut) return false;
+            if (GameDirector.Instance != null && (GameDirector.Instance.IsTeamMatch || Tournament != null) && r.Team == Self.Team) return false;
+            return true;
+        }
+
+        /// <summary>プログラムの狙いの選び方 (最寄り以外)。優先する種別がいなければ最寄り。</summary>
+        private RobotAgent ByPolicy(Vector3 from, IReadOnlyList<RobotAgent> robots)
+        {
+            RobotAgent best = null;
+            float bestScore = float.MaxValue;
+            foreach (RobotAgent r in robots)
+            {
+                if (!IsEnemy(r)) continue;
+                float d = (r.transform.position - from).magnitude;
+                float score = d;
+                switch (TargetPolicy)
+                {
+                    case Rules.AutoTarget.Weakest: score = (r.Health != null ? r.Health.Hp : 999) * 100f + d; break;
+                    case Rules.AutoTarget.Head: if (!r.IsHeadAttacker) score += 1000f; break;
+                    case Rules.AutoTarget.Builder: if (!r.IsBuilder) score += 1000f; break;
+                    case Rules.AutoTarget.Attacker: if (r.IsBuilder) score += 1000f; break;
+                }
+                if (score < bestScore) { bestScore = score; best = r; }
+            }
+            m_Target = best;
+            return best;
+        }
+
         private RobotAgent Nearest(Vector3 from)
         {
             IReadOnlyList<RobotAgent> robots = Robots != null ? Robots() : null;
@@ -321,6 +404,7 @@ namespace CoreSim
                 m_Target = null;
                 return null;
             }
+            if (TargetPolicy != Rules.AutoTarget.Nearest) return ByPolicy(from, robots);
             RobotAgent best = null;
             float bestDist = float.MaxValue;
             RobotAgent nearBuilder = null;

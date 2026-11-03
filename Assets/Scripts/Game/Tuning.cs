@@ -36,6 +36,8 @@ namespace CoreSim
         public const float DiscRadius = 0.09f;
         public const float DiscThickness = 0.02f;
         public const float DiscMass = 0.015f;
+        public const float MiniDiscRadius = 0.05f;   // 4.2 ミニフライングディスク 直径 100 mm (オートアタッカー)
+        public const float MiniDiscMass = 0.008f;
         public const float DiscLifetime = 6f;
 
         // ---- HP (hp_manager / sample_robot_N_spawn_for_core.launch.py) ----

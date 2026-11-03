@@ -14,6 +14,7 @@ namespace CoreSim
         private readonly List<Button> m_SkillButtons = new List<Button>();
         private readonly List<Text> m_SkillLabels = new List<Text>();
         private readonly List<Image> m_SkillImages = new List<Image>();
+        private Button m_AutoStartButton, m_AutoStopButton;
         private Side m_Side;
         private System.Action<SkillKind> m_OnSkill;
 
@@ -83,8 +84,16 @@ namespace CoreSim
                 hud.m_SkillImages.Add(b.GetComponent<Image>());
             }
 
+            // オートアタッカーの始動 / 停止 (同盟にいるときだけ出す)
+            hud.m_AutoStartButton = UiKit.Button(skills, "0  オート始動", new Vector2(130f, 80f), () => onSkill?.Invoke((SkillKind)TournamentConfig.AutoStartCommand),
+                                                 new Color(0.15f, 0.45f, 0.35f, 0.95f), 19);
+            hud.m_AutoStopButton = UiKit.Button(skills, "-  オート停止", new Vector2(130f, 80f), () => onSkill?.Invoke((SkillKind)TournamentConfig.AutoStopCommand),
+                                                new Color(0.45f, 0.2f, 0.2f, 0.95f), 19);
+            hud.m_AutoStartButton.gameObject.SetActive(false);
+            hud.m_AutoStopButton.gameObject.SetActive(false);
+
             RectTransform hint = UiKit.Rect(root, "SkillHint", new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 122f), new Vector2(1460f, 30f));
-            UiKit.Label(hint, "Text", "スキル: キー 1〜9 / パッド 十字← → で選んで X(□) で発動 / 画面のボタン", 18, new Color(0.85f, 0.85f, 0.85f));
+            UiKit.Label(hint, "Text", "スキル: キー 1〜9 / パッド 十字← → で選んで X(□) で発動 / 画面のボタン   オートアタッカー: 0 で始動、- で停止", 18, new Color(0.85f, 0.85f, 0.85f));
 
             // 左中: 出来事
             RectTransform log = UiKit.Rect(root, "Log", new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(300f, -120f), new Vector2(560f, 150f));
@@ -122,11 +131,17 @@ namespace CoreSim
             if (self != null && view.Robots.TryGetValue(self.Index, out RobotExtra me))
             {
                 bool builder = me.IsBuilder || self.IsBuilder;
+                bool auto = me.IsAuto || self.IsAuto;
                 if (builder)
                 {
                     string held = self.Lift != null && self.Lift.Held != null ? self.Lift.Held.Label : "なし";
                     float h = self.Lift != null ? self.Lift.Height : 0f;
                     m_Ammo.text = $"ビルダー  HP {me.Hp}/{me.MaxHp}   ハンド {h:F2} m   持ち物: {held}";
+                }
+                else if (auto)
+                {
+                    string state = me.AutoStopped ? "停止" : me.AutoStarted ? "稼働中" : "始動待ち";
+                    m_Ammo.text = $"オートアタッカー ({state})  HP {me.Hp}/{me.MaxHp}   ミニディスク {me.Magazine} 枚";
                 }
                 else
                 {
@@ -144,6 +159,12 @@ namespace CoreSim
                 {
                     m_Center.text = self.Lift != null ? self.Lift.Hint("Space / RB") : "";
                 }
+                else if (auto)
+                {
+                    m_Center.text = me.AutoStopped ? "停止しました (このラウンドは再始動できません)"
+                        : !me.AutoStarted ? "オートアタッカーは始動を待っています (0 キー / 「オート始動」)"
+                        : me.Magazine == 0 ? "ミニディスクなし (ラウンド中の補給はできません)" : "";
+                }
                 else if (me.Magazine == 0)
                 {
                     m_Center.text = me.PitInGranted ? "残弾なし。自同盟の補給エリアへ (20 秒停止)" : "残弾なし。ピットイン (1) を発動してから補給エリアへ";
@@ -159,6 +180,20 @@ namespace CoreSim
                 if (mine.SkillLockFor > 0f) status += $"スキル待ち {mine.SkillLockFor:F0}s";
                 m_Status.text = status;
             }
+
+            // オートアタッカーの始動 / 停止
+            bool hasAuto = false, autoStarted = false, autoStopped = false;
+            foreach (var kv in view.Robots)
+            {
+                if (!kv.Value.IsAuto || kv.Value.Side != m_Side) continue;
+                hasAuto = true;
+                autoStarted = kv.Value.AutoStarted;
+                autoStopped = kv.Value.AutoStopped;
+            }
+            m_AutoStartButton.gameObject.SetActive(hasAuto);
+            m_AutoStopButton.gameObject.SetActive(hasAuto);
+            m_AutoStartButton.interactable = canCommand && hasAuto && !autoStarted && !autoStopped && !view.Finished;
+            m_AutoStopButton.interactable = canCommand && hasAuto && autoStarted && !autoStopped && !view.Finished;
 
             bool timedFree = mine.BoostFor <= 0f && mine.BarrierLevel == 0 && mine.SkillLockFor <= 0f;
             for (int i = 0; i < m_SkillButtons.Count; i++)

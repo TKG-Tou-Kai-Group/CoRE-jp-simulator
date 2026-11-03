@@ -17,7 +17,8 @@ namespace CoreSim
         public bool Remote;               // クライアント側の写し (物理なし)
         public bool IsHeadAttacker;       // 大会ルール: ヘッドアタッカー
         public bool Frozen;               // 大会ルール: ピットイン中の完全停止
-        public RobotKind Kind;            // アタッカー / ビルダー
+        public RobotKind Kind;            // アタッカー / ビルダー / オートアタッカー
+        public bool AutoStarted;          // オートアタッカー: 始動済みで停止していない (大会ルール。ホスト / 写しとも)
         public HealthModel Health;
         public ICommandSource Source;
         public ChassisDrive Drive;
@@ -37,7 +38,9 @@ namespace CoreSim
         public bool CanAct => !IsKnockedOut && !Frozen;
         public bool IsTurbo => Remote ? m_RemoteTurbo : LastCommand.Turbo;
         public bool IsBuilder => Kind == RobotKind.Builder;
-        public string KindName => IsBuilder ? "ビルダー" : IsHeadAttacker ? "ヘッドアタッカー" : "アタッカー";
+        public bool IsAuto => Kind == RobotKind.AutoAttacker;
+        public string KindName => IsBuilder ? "ビルダー" : IsAuto ? "オートアタッカー" : IsHeadAttacker ? "ヘッドアタッカー" : "アタッカー";
+        public Vector3 StartPosition => m_StartPose.position;
         public Color TeamColor => Team == Team.Blue ? Tuning.BlueTeam : Tuning.RedTeam;
 
         private Rigidbody m_Body;
@@ -192,7 +195,8 @@ namespace CoreSim
             }
             RobotCommand cmd = Source != null ? Source.Read() : RobotCommand.None;
             var director = GameDirector.Instance;
-            bool controllable = director != null && director.RobotsMayMove && CanAct;
+            bool controllable = director != null && director.RobotsMayMove && CanAct &&
+                                (!IsAuto || AutoStarted || director.Tournament == null);   // オートは始動まで動かない (12.7)
             if (!controllable)
             {
                 cmd = RobotCommand.None;

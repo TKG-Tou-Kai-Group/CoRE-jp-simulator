@@ -56,7 +56,7 @@ namespace CoreSim.Tests
             var snap = new SnapshotMessage { Tick = 1234, Serial = 9, Phase = 2, Remaining = 87.5f, OutcomeKind = 4, OutcomeIndex = 3 };
             snap.Robots.Add(new RobotState { Slot = 1, Px = 1.5f, Py = 0.1f, Pz = -9.75f, Qx = 0, Qy = 0.707f, Qz = 0, Qw = 0.707f, Hp = 190, Ko = false, Turbo = true, Shots = 7, Hits = 1 });
             snap.Robots.Add(new RobotState { Slot = 3, Hp = 0, Ko = true });
-            snap.Discs.Add(new DiscState { Id = 42, Px = 1, Py = 2, Pz = 3, Vx = 20, Vy = 1.2f, Vz = -0.5f });
+            snap.Discs.Add(new DiscState { Id = 42, Mini = true, Px = 1, Py = 2, Pz = 3, Vx = 20, Vy = 1.2f, Vz = -0.5f });
 
             var w = new ByteWriter();
             NetCodec.WriteSnapshot(w, snap);
@@ -71,6 +71,8 @@ namespace CoreSim.Tests
             Assert.AreEqual(2, back.Robots.Count);
             Assert.AreEqual(-9.75f, back.Robots[0].Pz);
             Assert.AreEqual(190, back.Robots[0].Hp);
+            Assert.IsTrue(back.Discs[0].Mini);
+            Assert.AreEqual(42, back.Discs[0].Id);
             Assert.IsTrue(back.Robots[0].Turbo);
             Assert.IsFalse(back.Robots[0].Ko);
             Assert.AreEqual(7, back.Robots[0].Shots);
@@ -113,7 +115,7 @@ namespace CoreSim.Tests
         [Test]
         public void LobbyAndInputRoundTrip()
         {
-            var lobby = new LobbyMessage { State = LobbyState.Playing, Mode = 1, MatchSeconds = 180, Speed = 0, BestOf = 3, FireMs = 300 };
+            var lobby = new LobbyMessage { State = LobbyState.Playing, Mode = 1, MatchSeconds = 180, Speed = 0, BestOf = 3, FireMs = 300, Autos = 1 };
             lobby.Slots.Add(new LobbySlot { Slot = 0, Kind = SlotKind.Host, Name = "ホスト" });
             lobby.Slots.Add(new LobbySlot { Slot = 2, Kind = SlotKind.Cpu, Name = "CPU 3" });
             var w = new ByteWriter();
@@ -123,6 +125,13 @@ namespace CoreSim.Tests
             Assert.AreEqual(180, back.MatchSeconds);
             Assert.AreEqual(3, back.BestOf);
             Assert.AreEqual(300, back.FireMs);
+            Assert.AreEqual(1, back.Autos);
+            var pw = new ByteWriter();
+            NetCodec.WriteProgram(pw, "hp<30 > retreat\nalways > hold", 77u);
+            Assert.AreEqual(MsgType.Program, NetCodec.PeekType(pw.Buffer, pw.Length));
+            string prog = NetCodec.ReadProgram(new ByteReader(pw.Buffer, pw.Length), out uint ptoken);
+            Assert.AreEqual(77u, ptoken);
+            Assert.AreEqual("hp<30 > retreat\nalways > hold", prog);
             Assert.AreEqual("ホスト", back.Slots[0].Name);
             Assert.AreEqual(SlotKind.Cpu, back.Slots[1].Kind);
 

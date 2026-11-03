@@ -31,6 +31,7 @@ namespace CoreSim.Net
         Discover = 10, // c→broadcast 部屋探し
         Announce = 11, // h→c 部屋の案内
         Skill = 12,    // c→h 総大将スキルの発動要求 (大会ルール)
+        Program = 13,  // c→h オートアタッカーのプログラム (ロビーで送る。ホストが実行する)
     }
 
     public enum LobbyState : byte
@@ -69,6 +70,7 @@ namespace CoreSim.Net
         public byte BestOf = 1;      // 大会ルール: 1 / 3 / 5
         public byte Builders;        // 各同盟のビルダーの数 (同盟の番号の大きい側から割り当てる)
         public ushort FireMs = 600;  // アタッカーの連射間隔 [ms] (ホストの設定を全員に見せる)
+        public byte Autos;           // 各同盟のオートアタッカーの数 (0 / 1。同盟の番号の最大側)
         public List<LobbySlot> Slots = new List<LobbySlot>();
     }
 
@@ -97,6 +99,10 @@ namespace CoreSim.Net
         public float FrozenFor;      // ピットイン停止の残り秒
         public ushort MaxHp;
         public bool PitInGranted;    // ピットインが発動されている
+        // ---- オートアタッカー ----
+        public bool IsAuto;
+        public bool AutoStarted;     // 始動の命令を受けた
+        public bool AutoStopped;     // 停止の命令を受けた (再始動なし)
         // ---- ビルダー ----
         public bool IsBuilder;
         public float Lift;           // ハンドの高さ [m]
@@ -134,6 +140,7 @@ namespace CoreSim.Net
     public struct DiscState
     {
         public ushort Id;
+        public bool Mini;            // オートアタッカーのミニディスク
         public float Px, Py, Pz;
         public float Vx, Vy, Vz;
     }
@@ -191,6 +198,17 @@ namespace CoreSim.Net
         public void UInt(uint v) { Ensure(4); for (int i = 0; i < 4; i++) m_Buffer[Length++] = (byte)(v >> (8 * i)); }
         public void Int(int v) => UInt(unchecked((uint)v));
         public void Float(float v) => UInt(BitConverter.ToUInt32(BitConverter.GetBytes(v), 0));
+        /// <summary>長い文字列 (2 バイト長)。maxBytes を超えるぶんは切る。</summary>
+        public void LongString(string s, int maxBytes)
+        {
+            byte[] b = Encoding.UTF8.GetBytes(s ?? "");
+            int n = Math.Min(b.Length, Math.Min(maxBytes, ushort.MaxValue));
+            UShort((ushort)n);
+            Ensure(n);
+            Array.Copy(b, 0, m_Buffer, Length, n);
+            Length += n;
+        }
+
         public void String(string s)
         {
             byte[] b = Encoding.UTF8.GetBytes(s ?? "");
@@ -235,6 +253,16 @@ namespace CoreSim.Net
         public uint UInt() { Need(4); uint v = 0; for (int i = 0; i < 4; i++) v |= (uint)m_Data[m_Pos + i] << (8 * i); m_Pos += 4; return v; }
         public int Int() => unchecked((int)UInt());
         public float Float() => BitConverter.ToSingle(BitConverter.GetBytes(UInt()), 0);
+        public string LongString(int maxBytes)
+        {
+            int n = UShort();
+            if (n > maxBytes) throw new InvalidOperationException("文字列が長すぎる");
+            Need(n);
+            string s = Encoding.UTF8.GetString(m_Data, m_Pos, n);
+            m_Pos += n;
+            return s;
+        }
+
         public string String()
         {
             int n = Byte();
@@ -247,7 +275,7 @@ namespace CoreSim.Net
 
     public static class NetCodec
     {
-        public const ushort ProtocolVersion = 5;
+        public const ushort ProtocolVersion = 6;
 
         /// <summary>名前に使える文字数。表示を崩す制御文字と改行は落とす。</summary>
         public const int MaxNameLength = 16;
@@ -292,7 +320,7 @@ namespace CoreSim.Net
         public static void WriteLobby(ByteWriter w, LobbyMessage m)
         {
             w.Reset(); w.Byte((byte)MsgType.Lobby);
-            w.Byte((byte)m.State); w.Byte(m.Mode); w.UShort(m.MatchSeconds); w.Byte(m.Speed); w.Byte(m.BestOf); w.Byte(m.Builders); w.UShort(m.FireMs);
+            w.Byte((byte)m.State); w.Byte(m.Mode); w.UShort(m.MatchSeconds); w.Byte(m.Speed); w.Byte(m.BestOf); w.Byte(m.Builders); w.UShort(m.FireMs); w.Byte(m.Autos);
             w.Byte((byte)Math.Min(m.Slots.Count, 255));
             foreach (LobbySlot s in m.Slots)
             {
@@ -320,7 +348,8 @@ namespace CoreSim.Net
                 w.Float(r.Px); w.Float(r.Py); w.Float(r.Pz);
                 w.Float(r.Qx); w.Float(r.Qy); w.Float(r.Qz); w.Float(r.Qw);
                 w.UShort(r.Hp);
-                w.Byte((byte)((r.Ko ? 1 : 0) | (r.Turbo ? 2 : 0) | (r.IsHead ? 4 : 0) | (r.PitInGranted ? 8 : 0) | (r.IsBuilder ? 16 : 0)));
+                w.Byte((byte)((r.Ko ? 1 : 0) | (r.Turbo ? 2 : 0) | (r.IsHead ? 4 : 0) | (r.PitInGranted ? 8 : 0) | (r.IsBuilder ? 16 : 0)
+                              | (r.IsAuto ? 32 : 0) | (r.AutoStarted ? 64 : 0) | (r.AutoStopped ? 128 : 0)));
                 w.UShort(r.Shots); w.UShort(r.Hits);
                 w.Float(r.Lift); w.UShort(r.Held);
                 if (m.Tournament)
@@ -332,6 +361,7 @@ namespace CoreSim.Net
             foreach (DiscState d in m.Discs)
             {
                 w.UShort(d.Id);
+                w.Byte((byte)(d.Mini ? 1 : 0));
                 w.Float(d.Px); w.Float(d.Py); w.Float(d.Pz);
                 w.Float(d.Vx); w.Float(d.Vy); w.Float(d.Vz);
             }
@@ -370,6 +400,10 @@ namespace CoreSim.Net
             };
         }
 
+        public const int MaxProgramBytes = 4000;
+        public static void WriteProgram(ByteWriter w, string text, uint token) { w.Reset(); w.Byte((byte)MsgType.Program); w.UInt(token); w.LongString(text, MaxProgramBytes); }
+        public static string ReadProgram(ByteReader r, out uint token) { r.Byte(); token = r.UInt(); return r.LongString(MaxProgramBytes); }
+
         public static void WriteSkill(ByteWriter w, byte kind, uint token) { w.Reset(); w.Byte((byte)MsgType.Skill); w.UInt(token); w.Byte(kind); }
         public static byte ReadSkill(ByteReader r, out uint token) { r.Byte(); token = r.UInt(); return r.Byte(); }
 
@@ -407,6 +441,7 @@ namespace CoreSim.Net
                 BestOf = r.Byte(),
                 Builders = r.Byte(),
                 FireMs = r.UShort(),
+                Autos = r.Byte(),
             };
             int n = r.Byte();
             for (int i = 0; i < n; i++)
@@ -458,6 +493,9 @@ namespace CoreSim.Net
                 s.IsHead = (f & 4) != 0;
                 s.PitInGranted = (f & 8) != 0;
                 s.IsBuilder = (f & 16) != 0;
+                s.IsAuto = (f & 32) != 0;
+                s.AutoStarted = (f & 64) != 0;
+                s.AutoStopped = (f & 128) != 0;
                 s.Shots = r.UShort();
                 s.Hits = r.UShort();
                 s.Lift = r.Float();
@@ -474,6 +512,7 @@ namespace CoreSim.Net
                 m.Discs.Add(new DiscState
                 {
                     Id = r.UShort(),
+                    Mini = (r.Byte() & 1) != 0,
                     Px = r.Float(), Py = r.Float(), Pz = r.Float(),
                     Vx = r.Float(), Vy = r.Float(), Vz = r.Float(),
                 });
