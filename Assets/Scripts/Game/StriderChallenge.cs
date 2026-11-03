@@ -15,8 +15,8 @@ namespace CoreSim
     {
         private const float HipRate = 140f;    // [deg/s] キーを押している間の腿の動き
         private const float KneeRate = 160f;
-        private const float HipRange = 45f;
-        private const float KneeRange = 40f;
+        private const float HipRange = 65f;    // 直立 (腿 25 度) からの振り幅。前へ 90 度まで上げてハードルを越える
+        private const float KneeRange = 90f;   // 直立 (膝 50 度) からの曲げ幅。畳めば脚先を股関節の近くまで引き上げられる
 
         private GameDirector m_Director;
         private GameSettings m_Settings;

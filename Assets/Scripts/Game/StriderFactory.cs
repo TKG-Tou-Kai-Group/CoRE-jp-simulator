@@ -12,7 +12,7 @@ namespace CoreSim
         public const float Thigh = 0.22f;      // 股関節から膝 [m]
         public const float Calf = 0.22f;       // 膝から脚先 [m]
         public const float HipX = 0.15f;       // 胴体の中心から股関節まで (左右)。狭いと横に転ぶ
-        public const float HipZ = 0.18f;       // (前後)
+        public const float HipZ = 0.25f;       // (前後)。長いほどピッチ方向に安定し、ハードルを越えるとき前後の脚が同時に引っ掛からない
         public const float Splay = 10f;        // 脚を外へ開く角度 [deg] (股関節の外転は無いので固定)。接地幅を股関節の幅より広くする
         /// <summary>横の安定の補助: ロールを戻すトルク [N·m/rad] と減衰。脚にピッチしか無いので、無いと 2 本脚で接地した
         /// 瞬間に横へ倒れる (実機は股関節の外転で踏ん張る)。0 にすれば補助なし。</summary>
@@ -22,13 +22,17 @@ namespace CoreSim
         /// 左右の脚の差で向きを直せず、歩くうちに回ってコースから出る。0 にすれば補助なし。</summary>
         public const float YawAssist = 60f;
         public const float YawAssistDamping = 10f;
+        /// <summary>ピッチの補助 (弱め): 胴体を水平に戻すトルク [N·m/rad] と減衰。ハードルを越えるときに前を持ち上げる動きは
+        /// 残したいので弱くする。0 にすれば補助なし。</summary>
+        public const float PitchAssist = 25f;
+        public const float PitchAssistDamping = 4f;
 
         /// <summary>向きの補助が向ける進行方向 (水平)。zero なら向きの補助なし。</summary>
         public Vector3 Heading;
         public const float BodyMass = 6f;
-        public const float HipLimit = 70f;     // 股関節の可動域 [deg] (前後)
+        public const float HipLimit = 90f;     // 股関節の可動域 [deg] (前後)。ハードル (30 cm) を越えるには腿を水平近くまで上げる
         public const float KneeMin = 5f;       // 膝 (脛を後ろへ曲げる向きが正)
-        public const float KneeMax = 140f;
+        public const float KneeMax = 160f;     // 脚を畳んで脚先を股関節の近くまで引き上げられる
         public const float StandHip = 25f;     // 直立時の腿 (前へ 25 度)。膝 50 度と合わせると脚先が股関節の真下に来て、胴体の高さは 0.40 m
         public const float StandKnee = 50f;    // 直立時の膝
         // 関節のサーボ。ArticulationDrive の stiffness / damping は目標角との差 (Unity は度で指定するが内部はラジアン) に掛かる
@@ -57,6 +61,14 @@ namespace CoreSim
             // 右へ傾くと roll > 0。forward 軸回りの正のトルクは (左手系なので) 胴体を左へ傾けるので、roll にそのまま掛ける
             Body.AddTorque(forward * (roll * RollAssist - rollRate * RollAssistDamping), ForceMode.Force);
 
+            if (PitchAssist > 0f)
+            {
+                // 前が上がると pitch > 0。right 軸回りの正のトルクは (左手系なので) 前を下げる
+                Vector3 right = Body.transform.right;
+                float pitch = Mathf.Asin(Mathf.Clamp(forward.y, -1f, 1f));
+                float pitchRate = Vector3.Dot(Body.angularVelocity, right);
+                Body.AddTorque(right * (pitch * PitchAssist - pitchRate * PitchAssistDamping), ForceMode.Force);
+            }
             if (YawAssist > 0f && Heading.sqrMagnitude > 1e-4f)
             {
                 // 進行方向との向きの差 (上から見て時計回りが正) を戻す。y 軸回りの正のトルクは上から見て時計回り
@@ -112,9 +124,9 @@ namespace CoreSim
             body.angularDamping = 0.5f;
             body.centerOfMass = new Vector3(0f, -0.03f, 0f);   // 重心は少し低く (バッテリーが底にある想定)
             var box = root.AddComponent<BoxCollider>();
-            box.size = new Vector3(0.30f, 0.10f, 0.44f);
-            Visuals.Create("body", PrimitiveType.Cube, root.transform, Vector3.zero, Quaternion.identity, new Vector3(0.30f, 0.10f, 0.44f), bodyMat);
-            Visuals.Create("head", PrimitiveType.Cube, root.transform, new Vector3(0f, 0.03f, 0.25f), Quaternion.identity, new Vector3(0.12f, 0.08f, 0.08f), footMat);
+            box.size = new Vector3(0.30f, 0.10f, HipZ * 2f + 0.08f);
+            Visuals.Create("body", PrimitiveType.Cube, root.transform, Vector3.zero, Quaternion.identity, new Vector3(0.30f, 0.10f, HipZ * 2f + 0.08f), bodyMat);
+            Visuals.Create("head", PrimitiveType.Cube, root.transform, new Vector3(0f, 0.03f, HipZ + 0.07f), Quaternion.identity, new Vector3(0.12f, 0.08f, 0.08f), footMat);
             var strider = root.AddComponent<Strider>();
             strider.Body = body;
 
