@@ -1,0 +1,143 @@
+using UnityEngine;
+
+namespace CoreSim
+{
+    /// <summary>
+    /// ストライダー (4 本脚、脚は腿と脛の 2 自由度、第 15 章)。ArticulationBody で胴体 → 股関節 (ピッチ) → 膝 (ピッチ)
+    /// の連結を作る。脚の寸法はオープンソースの 4 足歩行ロボット MEVIUS (東大 JSK) を目安にし、リンク長は 15.3 の
+    /// 200〜400 mm に収める。脚の番号: 0 前左、1 前右、2 後左、3 後右。トロットの対角ペア A = 0 + 3、B = 1 + 2。
+    /// </summary>
+    public sealed class Strider : MonoBehaviour
+    {
+        public const float Thigh = 0.22f;      // 股関節から膝 [m]
+        public const float Calf = 0.22f;       // 膝から脚先 [m]
+        public const float HipX = 0.10f;       // 胴体の中心から股関節まで (左右)
+        public const float HipZ = 0.18f;       // (前後)
+        public const float BodyMass = 6f;
+        public const float HipLimit = 70f;     // 股関節の可動域 [deg] (前後)
+        public const float KneeMin = 5f;       // 膝 (脛を後ろへ曲げる向きが正)
+        public const float KneeMax = 140f;
+        public const float StandKnee = 45f;    // 直立時の膝
+        public const float Stiffness = 6f;     // 関節のサーボ [N·m/deg]
+        public const float Damping = 0.6f;
+        public const float ForceLimit = 40f;   // [N·m]
+
+        public ArticulationBody Body { get; private set; }
+        public ArticulationBody[] Hips { get; } = new ArticulationBody[4];
+        public ArticulationBody[] Knees { get; } = new ArticulationBody[4];
+        public Transform[] Feet { get; } = new Transform[4];
+
+        /// <summary>脚先のワールド位置。</summary>
+        public Vector3 Foot(int i) => Feet[i].position;
+        public bool Fallen => Body.transform.up.y < 0.35f;
+
+        /// <summary>
+        /// 関節の目標角 [deg]。hip は前へ振る向きが正、knee は脛を後ろへ曲げる向きが正。
+        /// 対角ペア A (前左 + 後右) と B (前右 + 後左)。
+        /// </summary>
+        public void SetTargets(float hipA, float kneeA, float hipB, float kneeB)
+        {
+            SetLeg(0, hipA, kneeA);
+            SetLeg(3, hipA, kneeA);
+            SetLeg(1, hipB, kneeB);
+            SetLeg(2, hipB, kneeB);
+        }
+
+        private void SetLeg(int i, float hip, float knee)
+        {
+            // Unity の x 軸回りの正の回転は腿を後ろへ振るので符号を反転する
+            ArticulationDrive h = Hips[i].xDrive;
+            h.target = Mathf.Clamp(-hip, -HipLimit, HipLimit);
+            Hips[i].xDrive = h;
+            ArticulationDrive k = Knees[i].xDrive;
+            k.target = Mathf.Clamp(knee, KneeMin, KneeMax);
+            Knees[i].xDrive = k;
+        }
+
+        public static Strider Create(Vector3 position, Quaternion rotation)
+        {
+            Material bodyMat = MaterialLibrary.Color(new Color(0.85f, 0.55f, 0.15f), 0.5f, 0.3f);
+            Material legMat = MaterialLibrary.Color(new Color(0.3f, 0.32f, 0.36f), 0.4f, 0.5f);
+            Material footMat = MaterialLibrary.Color(new Color(0.1f, 0.1f, 0.12f), 0.2f);
+            var grip = new PhysicsMaterial("strider_foot") { dynamicFriction = 1.0f, staticFriction = 1.2f, frictionCombine = PhysicsMaterialCombine.Maximum };
+
+            var root = new GameObject("Strider");
+            root.transform.SetPositionAndRotation(position, rotation);
+            root.layer = Tuning.LayerRobot;
+            var body = root.AddComponent<ArticulationBody>();
+            body.mass = BodyMass;
+            body.solverIterations = 24;
+            body.solverVelocityIterations = 24;
+            body.linearDamping = 0.05f;
+            body.angularDamping = 0.5f;
+            var box = root.AddComponent<BoxCollider>();
+            box.size = new Vector3(0.24f, 0.10f, 0.44f);
+            Visuals.Create("body", PrimitiveType.Cube, root.transform, Vector3.zero, Quaternion.identity, new Vector3(0.24f, 0.10f, 0.44f), bodyMat);
+            Visuals.Create("head", PrimitiveType.Cube, root.transform, new Vector3(0f, 0.03f, 0.25f), Quaternion.identity, new Vector3(0.12f, 0.08f, 0.08f), footMat);
+            var strider = root.AddComponent<Strider>();
+            strider.Body = body;
+
+            for (int i = 0; i < 4; i++)
+            {
+                float sx = i % 2 == 0 ? -HipX : HipX;      // 偶数 = 左
+                float sz = i < 2 ? HipZ : -HipZ;           // 0, 1 = 前
+                var hipGo = new GameObject($"hip_{i}");
+                hipGo.transform.SetParent(root.transform, false);
+                hipGo.transform.localPosition = new Vector3(sx, 0f, sz);
+                hipGo.layer = Tuning.LayerRobot;
+                var hip = hipGo.AddComponent<ArticulationBody>();
+                hip.mass = 0.7f;
+                hip.jointType = ArticulationJointType.RevoluteJoint;
+                hip.anchorPosition = Vector3.zero;
+                hip.anchorRotation = Quaternion.identity;            // 回転軸 = 親の x (左右) → ピッチ
+                hip.twistLock = ArticulationDofLock.LimitedMotion;
+                hip.xDrive = new ArticulationDrive { stiffness = Stiffness, damping = Damping, forceLimit = ForceLimit, lowerLimit = -HipLimit, upperLimit = HipLimit, target = 0f };
+                hip.jointFriction = 0.02f;
+                hip.angularDamping = 0.3f;
+                var thigh = hipGo.AddComponent<CapsuleCollider>();
+                thigh.direction = 1;   // y
+                thigh.radius = 0.025f;
+                thigh.height = Thigh;
+                thigh.center = new Vector3(0f, -Thigh / 2f, 0f);
+                Visuals.Create("thigh", PrimitiveType.Capsule, hipGo.transform, new Vector3(0f, -Thigh / 2f, 0f), Quaternion.identity,
+                               new Vector3(0.05f, Thigh / 2f, 0.05f), legMat);
+                Visuals.Create("hip_joint", PrimitiveType.Sphere, hipGo.transform, Vector3.zero, Quaternion.identity, new Vector3(0.07f, 0.07f, 0.07f), footMat);
+
+                var kneeGo = new GameObject($"knee_{i}");
+                kneeGo.transform.SetParent(hipGo.transform, false);
+                kneeGo.transform.localPosition = new Vector3(0f, -Thigh, 0f);
+                kneeGo.layer = Tuning.LayerRobot;
+                var knee = kneeGo.AddComponent<ArticulationBody>();
+                knee.mass = 0.5f;
+                knee.jointType = ArticulationJointType.RevoluteJoint;
+                knee.anchorPosition = Vector3.zero;
+                knee.anchorRotation = Quaternion.identity;
+                knee.twistLock = ArticulationDofLock.LimitedMotion;
+                knee.xDrive = new ArticulationDrive { stiffness = Stiffness, damping = Damping, forceLimit = ForceLimit, lowerLimit = KneeMin, upperLimit = KneeMax, target = StandKnee };
+                knee.jointFriction = 0.02f;
+                knee.angularDamping = 0.3f;
+                var calf = kneeGo.AddComponent<CapsuleCollider>();
+                calf.direction = 1;
+                calf.radius = 0.02f;
+                calf.height = Calf;
+                calf.center = new Vector3(0f, -Calf / 2f, 0f);
+                calf.sharedMaterial = grip;
+                var footCol = kneeGo.AddComponent<SphereCollider>();
+                footCol.radius = 0.03f;
+                footCol.center = new Vector3(0f, -Calf, 0f);
+                footCol.sharedMaterial = grip;
+                Visuals.Create("calf", PrimitiveType.Capsule, kneeGo.transform, new Vector3(0f, -Calf / 2f, 0f), Quaternion.identity,
+                               new Vector3(0.04f, Calf / 2f, 0.04f), legMat);
+                Visuals.Create("foot", PrimitiveType.Sphere, kneeGo.transform, new Vector3(0f, -Calf, 0f), Quaternion.identity, new Vector3(0.06f, 0.06f, 0.06f), footMat);
+                var foot = new GameObject("foot_tip");
+                foot.transform.SetParent(kneeGo.transform, false);
+                foot.transform.localPosition = new Vector3(0f, -Calf, 0f);
+
+                strider.Hips[i] = hip;
+                strider.Knees[i] = knee;
+                strider.Feet[i] = foot.transform;
+            }
+            return strider;
+        }
+    }
+}

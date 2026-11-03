@@ -15,6 +15,8 @@ namespace CoreSim
         Practice,
         /// <summary>オート対戦。自分のプログラムのオートアタッカー vs 相手のプログラム (保存したスロットから選ぶ)。見ているだけ。</summary>
         AutoBattle,
+        /// <summary>ストライダーチャレンジ。4 本脚のロボットを QWOP 方式で歩かせてストライダーエリアを踏破するタイムアタック。</summary>
+        Strider,
     }
 
     public enum Ruleset

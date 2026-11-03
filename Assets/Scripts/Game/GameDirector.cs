@@ -543,10 +543,21 @@ namespace CoreSim
 
         private bool TournamentRequested => Role == NetRole.Host ? m_Host.Mode == 2 : Settings.Rules == Ruleset.Tournament;
 
+        private StriderChallenge m_Strider;
+
+        /// <summary>ストライダーチャレンジなどの単独モードからメニューへ。</summary>
+        public void BackToMenu() => ShowMenu();
+
         public void StartMatch()
         {
             ClearMatch();
             LeaveMenuForMatch();
+            if (Role == NetRole.None && Settings.Rules != Ruleset.Tournament && Settings.Mode == GameMode.Strider)
+            {
+                // ストライダーチャレンジは試合の仕組みを使わない単独モード
+                m_Strider = StriderChallenge.Create(this, Settings, m_Canvas.transform);
+                return;
+            }
             m_MatchSerial++;
             bool tournament = TournamentRequested;
 
@@ -884,6 +895,11 @@ namespace CoreSim
 
         private void ClearMatch()
         {
+            if (m_Strider != null)
+            {
+                Destroy(m_Strider.gameObject);
+                m_Strider = null;
+            }
             foreach (PlayerView v in m_Views)
             {
                 if (v != null) Destroy(v.gameObject);

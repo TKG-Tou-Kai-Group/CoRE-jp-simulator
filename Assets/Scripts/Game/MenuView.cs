@@ -60,7 +60,7 @@ namespace CoreSim
             Vector2 size = new Vector2(560f, 68f);
             menu.m_RulesButton = UiKit.Button(options, "", size, () => { settings.Rules = settings.Rules == Ruleset.Casual ? Ruleset.Tournament : Ruleset.Casual; menu.Refresh(); },
                                               new Color(0.3f, 0.25f, 0.45f, 0.95f), 28);
-            menu.m_ModeButton = UiKit.Button(options, "", size, () => { settings.Mode = (GameMode)(((int)settings.Mode + 1) % 5); menu.Refresh(); }, fontSize: 28);
+            menu.m_ModeButton = UiKit.Button(options, "", size, () => { settings.Mode = (GameMode)(((int)settings.Mode + 1) % 6); menu.Refresh(); }, fontSize: 28);
             RectTransform summaryRow = UiKit.Rect(options, "Summary", Vector2.zero, Vector2.zero, Vector2.zero, new Vector2(560f, 150f));
             menu.m_Summary = UiKit.Label(summaryRow, "Text", "", 22, new Color(0.85f, 0.9f, 1f), TextAnchor.UpperLeft, false);
             menu.m_Summary.horizontalOverflow = HorizontalWrapMode.Wrap;
@@ -93,12 +93,14 @@ namespace CoreSim
                 GameMode.TeamVsCpu => "遊び方: チーム戦 (2 vs 2、味方は CPU)",
                 GameMode.LocalVersus => "遊び方: ふたりで対戦 (画面分割、パッド 2 台)",
                 GameMode.AutoBattle => "遊び方: オート対戦 (自分のプログラム vs 相手のプログラム)",
+                GameMode.Strider => "遊び方: ストライダーチャレンジ (4 本脚を歩かせるタイムアタック)",
                 _ => "遊び方: 練習 (時間無制限)",
             });
             m_Summary.text = tournament
                 ? $"赤 {m_Settings.RobotsPerSide} 台 vs 青 {m_Settings.RobotsPerSide} 台 (ビルダー各 {m_Settings.EffectiveBuilders} 台、オート各 {(m_Settings.Role == PlayerRole.AutoAttacker ? 1 : m_Settings.AutosPerSide)} 台)、{BestOfText(m_Settings.BestOf)}\n" +
                   $"自分: {(m_Settings.PlayerIsRed ? "赤" : "青")}同盟の{RoleName(m_Settings.Role)}、弾倉 {m_Settings.Magazine} 枚\n" +
                   $"機体の速さ: {(m_Settings.Speed == SpeedPreset.Game ? "ゲーム" : "リアル")}、連射 {m_Settings.FireInterval:0.##} 秒"
+                : m_Settings.Mode == GameMode.Strider ? "赤サイドのストライダーエリア (24 m × 1.5 m) を踏破します。Q / W で腿、O / P で膝、矢印で視点。\n脚は対角のペアで逆に動きます (トロット)。転んだら R でやり直し"
                 : $"{(m_Settings.Mode == GameMode.SoloVsCpu ? $"CPU {m_Settings.CpuCount} 台、" : m_Settings.Mode == GameMode.AutoBattle ? $"相手: {m_Settings.CpuProgramLabel}、" : "")}" +
                   $"{(m_Settings.Mode == GameMode.Practice ? "時間無制限" : $"試合時間 {m_Settings.MatchSeconds} 秒")}\n" +
                   $"機体の速さ: {(m_Settings.Speed == SpeedPreset.Game ? "ゲーム" : "リアル")}、連射 {m_Settings.FireInterval:0.##} 秒";
