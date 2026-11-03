@@ -155,28 +155,24 @@ namespace CoreSim
             return s;
         }
 
-        /// <summary>名前付きの地点 (自同盟の側から見た位置)。</summary>
-        private Vector3 PointFor(AutoPoint point)
+        private Vector3 PointFor(AutoPoint point) => NamedPoint(point, TournamentController.SideOf(Self.Team));
+
+        /// <summary>名前付きの地点 (その同盟の側から見た位置)。地図の選択画面も同じ位置に印を出す。</summary>
+        public static Vector3 NamedPoint(AutoPoint point, Side mine)
         {
             Field2027Data field = ArenaBuilder.Field2027;
-            Side mine = TournamentController.SideOf(Self.Team);
             string side = TournamentController.SideName(mine);
             string enemy = TournamentController.SideName(TournamentRound.Opposite(mine));
             float sign = mine == Side.Red ? -1f : 1f;   // 赤は x < 0 側
-            if (m_Rule != null && m_Rule.Custom && point == AutoPoint.Custom)
-            {
-                // 地図で選んだ点は「自同盟が赤側」の座標。青同盟なら点対称 (フィールドは点対称)
-                return mine == Side.Red ? new Vector3(m_Rule.X, 0f, m_Rule.Z) : new Vector3(-m_Rule.X, 0f, -m_Rule.Z);
-            }
             switch (point)
             {
                 case AutoPoint.OwnFront: return BaseFront(field, side);
                 case AutoPoint.EnemyFront: return BaseFront(field, enemy);
-                case AutoPoint.Start: return field != null ? field.Spawn(side, 0).position : Self.StartPosition;
+                case AutoPoint.Start: return field != null ? field.Spawn(side, 0).position : new Vector3(sign * 9.8f, 0f, sign * 5.1f);
                 case AutoPoint.EnemyStart:
                 {
                     // 相手のスタートゾーンの手前 (中に入ると相手の補給エリアに近く、スタートゾーンの出口で待ち構える形)
-                    Vector3 sp = field != null ? field.Spawn(enemy, 0).position : -Self.StartPosition;
+                    Vector3 sp = field != null ? field.Spawn(enemy, 0).position : new Vector3(-sign * 9.8f, 0f, -sign * 5.1f);
                     Vector3 toCenter = -sp; toCenter.y = 0f;
                     return sp + (toCenter.sqrMagnitude > 1e-3f ? toCenter.normalized : Vector3.zero) * 3f;
                 }

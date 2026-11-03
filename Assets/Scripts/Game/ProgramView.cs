@@ -141,15 +141,8 @@ namespace CoreSim
             }
             else if (rule.Action == AutoAction.GoTo)
             {
-                string pointLabel = rule.Custom ? $"地図 ({rule.X:0.0}, {rule.Z:0.0})" : AutoProgram.PointName(rule.Point);
-                UiKit.Button(row, pointLabel, new Vector2(200f, 50f), () =>
-                {
-                    // 名前付きの地点を巡回する (地図で選んだ点からは「中央」へ戻る)
-                    rule.Param = rule.Custom ? 0f : ((int)rule.Point + 1) % 7;
-                    rule.Custom = false;
-                    Changed();
-                }, new Color(0.3f, 0.35f, 0.3f, 0.95f), 18);
-                UiKit.Button(row, "地図", new Vector2(70f, 50f), () => OpenMap(rule), new Color(0.2f, 0.35f, 0.45f, 0.95f), 18);
+                UiKit.Button(row, AutoProgram.PointName(rule.Point), new Vector2(200f, 50f), () => { rule.Param = ((int)rule.Point + 1) % AutoRule.PointCount; Changed(); }, new Color(0.3f, 0.35f, 0.3f, 0.95f), 18);
+                UiKit.Button(row, "地図で選ぶ", new Vector2(100f, 50f), () => OpenMap(rule), new Color(0.2f, 0.35f, 0.45f, 0.95f), 18);
             }
             if (rule.Action == AutoAction.Engage || rule.Action == AutoAction.Hold || rule.Action == AutoAction.GoTo)
             {
@@ -166,11 +159,9 @@ namespace CoreSim
         private void OpenMap(AutoRule rule)
         {
             if (m_Map != null) return;
-            m_Map = MapPickerView.Create(transform.parent, rule.Custom, rule.X, rule.Z, (x, z) =>
+            m_Map = MapPickerView.Create(transform.parent, rule.Point, point =>
             {
-                rule.Custom = true;
-                rule.X = x;
-                rule.Z = z;
+                rule.Param = (int)point;
                 CloseMap();
                 Changed();
             }, CloseMap);

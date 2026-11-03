@@ -40,15 +40,12 @@ namespace CoreSim.Tests
         }
 
         [Test]
-        public void MapPickedPointRoundTrips()
+        public void NamedPointsRoundTrip()
         {
-            AutoProgram p = AutoProgram.Parse("always > goto=-3.5,2.25 @head\nenemy<5 > goto=enemystart");
-            Assert.IsTrue(p.Rules[0].Custom);
-            Assert.AreEqual(AutoPoint.Custom, p.Rules[0].Point);
-            Assert.AreEqual(-3.5f, p.Rules[0].X);
-            Assert.AreEqual(2.25f, p.Rules[0].Z);
-            Assert.AreEqual(AutoPoint.EnemyStart, p.Rules[1].Point);
-            Assert.AreEqual("always > goto=-3.5,2.25 @head\nenemy<5 > goto=enemystart @nearest", AutoProgram.Format(p));
+            AutoProgram p = AutoProgram.Parse("always > goto=enemystart @head\nenemy<5 > goto=nowhere");
+            Assert.AreEqual(AutoPoint.EnemyStart, p.Rules[0].Point);
+            Assert.AreEqual(AutoPoint.Center, p.Rules[1].Point);   // 知らない名前は中央
+            Assert.AreEqual("always > goto=enemystart @head\nenemy<5 > goto=center @nearest", AutoProgram.Format(p));
         }
 
         [Test]
