@@ -109,6 +109,7 @@ namespace CoreSim
             Vector3 pos = new Vector3(m_Course.StartX, 0.42f, m_Course.LaneCenterZ);
             Quaternion rot = Quaternion.Euler(0f, m_Course.Direction > 0f ? 90f : -90f, 0f);   // 進行方向 (+x) を向く
             m_Strider = Strider.Create(pos, rot);
+            m_Strider.Heading = new Vector3(m_Course.Direction, 0f, 0f);   // 向きの補助: 進行方向 (+x) を向き続ける
             m_HipA = 0f;
             m_KneeA = 0f;
             m_Strider.SetTargets(Strider.StandHip, Strider.StandKnee, Strider.StandHip, Strider.StandKnee);

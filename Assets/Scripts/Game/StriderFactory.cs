@@ -18,6 +18,13 @@ namespace CoreSim
         /// 瞬間に横へ倒れる (実機は股関節の外転で踏ん張る)。0 にすれば補助なし。</summary>
         public const float RollAssist = 80f;
         public const float RollAssistDamping = 8f;
+        /// <summary>向きの補助: 進行方向 (<see cref="Heading"/>) へ向け直すトルク [N·m/rad] と減衰。脚にピッチしか無いので
+        /// 左右の脚の差で向きを直せず、歩くうちに回ってコースから出る。0 にすれば補助なし。</summary>
+        public const float YawAssist = 60f;
+        public const float YawAssistDamping = 10f;
+
+        /// <summary>向きの補助が向ける進行方向 (水平)。zero なら向きの補助なし。</summary>
+        public Vector3 Heading;
         public const float BodyMass = 6f;
         public const float HipLimit = 70f;     // 股関節の可動域 [deg] (前後)
         public const float KneeMin = 5f;       // 膝 (脛を後ろへ曲げる向きが正)
@@ -49,6 +56,18 @@ namespace CoreSim
             float rollRate = Vector3.Dot(Body.angularVelocity, forward);
             // 右へ傾くと roll > 0。forward 軸回りの正のトルクは (左手系なので) 胴体を左へ傾けるので、roll にそのまま掛ける
             Body.AddTorque(forward * (roll * RollAssist - rollRate * RollAssistDamping), ForceMode.Force);
+
+            if (YawAssist > 0f && Heading.sqrMagnitude > 1e-4f)
+            {
+                // 進行方向との向きの差 (上から見て時計回りが正) を戻す。y 軸回りの正のトルクは上から見て時計回り
+                Vector3 flatForward = Vector3.ProjectOnPlane(forward, Vector3.up);
+                if (flatForward.sqrMagnitude > 1e-4f)
+                {
+                    float yawErr = Vector3.SignedAngle(flatForward, Heading, Vector3.up) * Mathf.Deg2Rad;
+                    float yawRate = Vector3.Dot(Body.angularVelocity, Vector3.up);
+                    Body.AddTorque(Vector3.up * (yawErr * YawAssist - yawRate * YawAssistDamping), ForceMode.Force);
+                }
+            }
         }
         public bool Fallen => Body.transform.up.y < 0.35f;
 
