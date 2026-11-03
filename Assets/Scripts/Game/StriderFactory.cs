@@ -47,7 +47,8 @@ namespace CoreSim
             Vector3 forward = Body.transform.forward;
             float roll = Mathf.Asin(Mathf.Clamp(Vector3.Dot(up, Vector3.Cross(Vector3.up, forward).normalized), -1f, 1f));
             float rollRate = Vector3.Dot(Body.angularVelocity, forward);
-            Body.AddTorque(forward * (-roll * RollAssist - rollRate * RollAssistDamping), ForceMode.Force);
+            // 右へ傾くと roll > 0。forward 軸回りの正のトルクは (左手系なので) 胴体を左へ傾けるので、roll にそのまま掛ける
+            Body.AddTorque(forward * (roll * RollAssist - rollRate * RollAssistDamping), ForceMode.Force);
         }
         public bool Fallen => Body.transform.up.y < 0.35f;
 
