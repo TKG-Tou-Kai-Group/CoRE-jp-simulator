@@ -315,7 +315,7 @@ namespace CoreSim.Rules
         public static string ActionName(AutoAction a) => a switch
         {
             AutoAction.AttackBase => "相手陣地を攻撃",
-            AutoAction.GoTo => "地点へ移動 (撃たない)",
+            AutoAction.GoTo => "地点へ移動",
             AutoAction.Hold => "その場で待機して撃つ",
             AutoAction.Retreat => "スタートゾーンへ戻る",
             _ => "敵に近づいて撃つ (間合い N m)",
