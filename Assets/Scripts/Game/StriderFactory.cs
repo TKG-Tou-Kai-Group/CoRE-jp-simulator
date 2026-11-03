@@ -141,9 +141,11 @@ namespace CoreSim
                 var hipGo = new GameObject($"hip_{i}");
                 hipGo.transform.SetParent(root.transform, false);
                 hipGo.transform.localPosition = new Vector3(sx, 0f, sz);
-                // 左脚は左へ、右脚は右へ開く。後脚は開かない (開くと前脚の振る面に入って当たる)
+                // 左脚は左へ、右脚は右へ開く。後脚は開かない。
+                // z 軸回りの正の回転は (0,-1,0) を +x 側へ倒すので、左脚 (x < 0) は負の角で外 (−x) へ、右脚は正の角で外 (+x) へ。
+                // (以前は符号が逆で、前脚が内側へ寄って後脚と当たっていた)
                 float splay = i < 2 ? Splay : 0f;
-                hipGo.transform.localRotation = Quaternion.Euler(0f, 0f, sx < 0f ? splay : -splay);
+                hipGo.transform.localRotation = Quaternion.Euler(0f, 0f, sx < 0f ? -splay : splay);
                 hipGo.layer = Tuning.LayerRobot;
                 var hip = hipGo.AddComponent<ArticulationBody>();
                 hip.mass = 0.7f;
