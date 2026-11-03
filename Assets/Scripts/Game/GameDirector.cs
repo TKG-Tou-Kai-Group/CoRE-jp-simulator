@@ -419,7 +419,7 @@ namespace CoreSim
             }
         }
 
-        private static bool kind_ok(byte kind) => kind < TournamentConfig.Skills.Length || kind == TournamentConfig.AutoStartCommand || kind == TournamentConfig.AutoStopCommand;
+        private static bool kind_ok(byte kind) => kind < TournamentConfig.Skills.Length;
 
         private void HandleClientLost(string reason)
         {
@@ -845,13 +845,6 @@ namespace CoreSim
         private void ActivateSkillFor(RobotAgent agent, SkillKind kind)
         {
             if (Tournament == null || Tournament.Remote || agent == null) return;
-            if ((byte)kind == TournamentConfig.AutoStartCommand || (byte)kind == TournamentConfig.AutoStopCommand)
-            {
-                // オートアタッカーの始動 / 停止 (12.7)。同盟の人なら誰でも送れる
-                bool ok = Tournament.CommandAuto(TournamentController.SideOf(agent.Team), (byte)kind == TournamentConfig.AutoStartCommand, out _);
-                if (ok) Audio.PlaySkill(); else Audio.PlayClick();
-                return;
-            }
             if (Tournament.ActivateSkill(TournamentController.SideOf(agent.Team), kind, out string reason, agent.Index))
             {
                 Audio.PlaySkill();

@@ -37,7 +37,7 @@ namespace CoreSim
             UiKit.Label(title, "Text", "オートアタッカーのプログラム", 48, Color.white);
             RectTransform help = UiKit.Rect(root, "Help", new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -120f), new Vector2(1500f, 60f));
             UiKit.Label(help, "Text", "上の行から順に条件を調べ、最初に成り立った行の行動をとります (どれも成り立たなければ最寄りの敵と交戦)。\n" +
-                                      "ボタンを押すと候補が切り替わります。試合中は人は始動 (0 キー) と停止 (-) だけです。", 22, new Color(0.85f, 0.9f, 1f));
+                                      "ボタンを押すと候補が切り替わります。試合中に人がすることは無く、ラウンド開始 2 秒後に自動で始動します。", 22, new Color(0.85f, 0.9f, 1f));
 
             view.m_Content = UiKit.ScrollView(root, "Body", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, -40f), new Vector2(1560f, 620f),
                                               new Color(0f, 0f, 0f, 0.55f), new RectOffset(20, 20, 16, 16), 8f, controlChildSize: false);
@@ -141,7 +141,7 @@ namespace CoreSim
             }
             else if (rule.Action == AutoAction.GoTo)
             {
-                UiKit.Button(row, AutoProgram.PointName(rule.Point), new Vector2(200f, 50f), () => { rule.Param = ((int)rule.Point + 1) % 6; Changed(); }, new Color(0.3f, 0.35f, 0.3f, 0.95f), 18);
+                UiKit.Button(row, AutoProgram.PointName(rule.Point), new Vector2(200f, 50f), () => { rule.Param = ((int)rule.Point + 1) % 7; Changed(); }, new Color(0.3f, 0.35f, 0.3f, 0.95f), 18);
             }
             if (rule.Action == AutoAction.Engage || rule.Action == AutoAction.Hold || rule.Action == AutoAction.GoTo)
             {

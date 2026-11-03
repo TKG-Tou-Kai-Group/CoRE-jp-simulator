@@ -115,10 +115,6 @@ namespace CoreSim.Rules
         };
 
         public static SkillSpec Spec(SkillKind kind) => Skills[(int)kind];
-
-        /// <summary>総大将端末の疑似コマンド (スキルと同じ経路で送る): オートアタッカーの始動 / 停止 (12.7)。</summary>
-        public const byte AutoStartCommand = 20;
-        public const byte AutoStopCommand = 21;
     }
 
     public sealed class TournamentRobot

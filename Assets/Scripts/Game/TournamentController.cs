@@ -115,6 +115,15 @@ namespace CoreSim
         {
             if (Remote || Round == null) return;
             Round.Tick(dt);
+            // オートアタッカーはラウンド開始 2 秒後に自動で始動する (12.7 の始動の命令は人が出すが、ゲームでは省く)。
+            // 停止の命令は非常時の安全のためのものなので、ゲームには無い (撃破されれば止まる)
+            if (Round.Running && Round.Time >= 2f)
+            {
+                foreach (TournamentRobot r in Round.Robots)
+                {
+                    if (r.IsAuto && !r.AutoStarted && !r.AutoStopped) Round.StartAuto(r.Slot, out _);
+                }
+            }
             UpdateZones();
             SyncAgents();
             DrainEvents();
@@ -336,22 +345,7 @@ namespace CoreSim
 
         public bool TryConsumeShot(RobotAgent agent) => !Remote && Round != null && Round.TryFire(agent.Index);
 
-        /// <summary>その同盟のオートアタッカーのスロット (いなければ -1)。</summary>
-        public int AutoSlotOf(Side side)
-        {
-            foreach (var kv in View.Robots) if (kv.Value.IsAuto && kv.Value.Side == side) return kv.Key;
-            return -1;
-        }
 
-        /// <summary>オートアタッカーの始動 / 停止 (12.7)。ホストだけ。</summary>
-        public bool CommandAuto(Side side, bool start, out string reason)
-        {
-            reason = "";
-            if (Remote || Round == null) return false;
-            int slot = AutoSlotOf(side);
-            if (slot < 0) { reason = "オートアタッカーがいない"; return false; }
-            return start ? Round.StartAuto(slot, out reason) : Round.StopAuto(slot, out reason);
-        }
 
         /// <param name="targetSlot">ピットインを受ける機体 (発動した操縦者の機体)。</param>
         public bool ActivateSkill(Side side, SkillKind kind, out string reason, int targetSlot = -1)

@@ -160,6 +160,13 @@ namespace CoreSim
                 case AutoPoint.OwnFront: return BaseFront(field, side);
                 case AutoPoint.EnemyFront: return BaseFront(field, enemy);
                 case AutoPoint.Start: return field != null ? field.Spawn(side, 0).position : Self.StartPosition;
+                case AutoPoint.EnemyStart:
+                {
+                    // 相手のスタートゾーンの手前 (中に入ると相手の補給エリアに近く、スタートゾーンの出口で待ち構える形)
+                    Vector3 sp = field != null ? field.Spawn(enemy, 0).position : -Self.StartPosition;
+                    Vector3 toCenter = -sp; toCenter.y = 0f;
+                    return sp + (toCenter.sqrMagnitude > 1e-3f ? toCenter.normalized : Vector3.zero) * 3f;
+                }
                 case AutoPoint.LeftLane: return new Vector3(sign * 3f, 0f, -sign * 3f);    // 赤: 陣地側 (z > 0)
                 case AutoPoint.RightLane: return new Vector3(sign * 3f, 0f, sign * 3f);    // 赤: ブロックゾーン側 (z < 0)
                 default: return Vector3.zero;

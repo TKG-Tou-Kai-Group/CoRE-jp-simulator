@@ -38,6 +38,7 @@ namespace CoreSim.Rules
         Start = 3,       // 自同盟のスタートゾーン
         LeftLane = 4,    // 自分から見て左の通路 (陣地側)
         RightLane = 5,   // 右の通路 (ブロックゾーン側)
+        EnemyStart = 6,  // 相手同盟のスタートゾーンの前
     }
 
     /// <summary>狙う相手の選び方。</summary>
@@ -64,7 +65,7 @@ namespace CoreSim.Rules
         public float Param = 5f;             // Engage: 間合い [m]。GoTo: 地点 (AutoPoint)
         public AutoTarget Target = AutoTarget.Nearest;
 
-        public AutoPoint Point => (AutoPoint)Math.Max(0, Math.Min((int)Param, (int)AutoPoint.RightLane));
+        public AutoPoint Point => (AutoPoint)Math.Max(0, Math.Min((int)Param, (int)AutoPoint.EnemyStart));
 
         public AutoRule Clone()
         {
@@ -146,7 +147,7 @@ namespace CoreSim.Rules
         // ------------------------------------------------------------------ テキスト形式
         // 1 行 = 1 ルール:  条件[&条件...] > 行動[=値] [@狙い]
         //   条件: always | enemy<N | enemy>N | hp<N | ammo<N | time>N | time<N | base | ally<N
-        //   行動: engage[=間合い] | base | goto=center|ownfront|enemyfront|start|left|right | hold | retreat
+        //   行動: engage[=間合い] | base | goto=center|ownfront|enemyfront|start|left|right|enemystart | hold | retreat
         //   狙い: @nearest | @weakest | @head | @builder | @attacker
 
         private static readonly (AutoCondition kind, string name, bool hasValue, char op)[] s_Conditions =
@@ -162,7 +163,7 @@ namespace CoreSim.Rules
             (AutoCondition.AllyWithin, "ally", true, '<'),
         };
         private static readonly string[] s_Actions = { "engage", "base", "goto", "hold", "retreat" };
-        private static readonly string[] s_Points = { "center", "ownfront", "enemyfront", "start", "left", "right" };
+        private static readonly string[] s_Points = { "center", "ownfront", "enemyfront", "start", "left", "right", "enemystart" };
         private static readonly string[] s_Targets = { "nearest", "weakest", "head", "builder", "attacker" };
 
         public static string Format(AutoProgram p)
@@ -326,6 +327,7 @@ namespace CoreSim.Rules
             AutoPoint.Start => "スタートゾーン",
             AutoPoint.LeftLane => "左の通路 (陣地側)",
             AutoPoint.RightLane => "右の通路 (ブロックゾーン側)",
+            AutoPoint.EnemyStart => "相手のスタートゾーンの前",
             _ => "中央",
         };
 
