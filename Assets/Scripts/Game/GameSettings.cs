@@ -13,8 +13,6 @@ namespace CoreSim
         LocalVersus,
         /// <summary>時間無制限の練習。撃ち返してこない的が 1 台いる。</summary>
         Practice,
-        /// <summary>オート対戦。自分のプログラムのオートアタッカー vs 相手のプログラム (保存したスロットから選ぶ)。見ているだけ。</summary>
-        AutoBattle,
         /// <summary>ストライダーチャレンジ。4 本脚のロボットを QWOP 方式で歩かせてストライダーエリアを踏破するタイムアタック。</summary>
         Strider,
     }
@@ -75,7 +73,7 @@ namespace CoreSim
         [System.Serializable] private class ProgramSlotList { public List<ProgramSlot> Slots = new List<ProgramSlot>(); }
         public const int ProgramSlotCount = 8;
         public List<ProgramSlot> ProgramSlots = new List<ProgramSlot>();
-        /// <summary>CPU のオートアタッカー (大会ルールの CPU 同盟、オート対戦の相手) が使うプログラムのスロット (-1 = 既定)。
+        /// <summary>CPU (アタッカーとオートアタッカー) が使うプログラムのスロット (-1 = 既定の内蔵 CPU)。
         /// 保存したプログラムを CPU に持たせることで難易度を自分で調整できる。</summary>
         public int CpuProgramSlot = -1;
 
@@ -150,7 +148,7 @@ namespace CoreSim
         public static GameSettings Load()
         {
             var s = new GameSettings();
-            s.Mode = (GameMode)PlayerPrefs.GetInt("mode", (int)s.Mode);
+            s.Mode = (GameMode)Mathf.Clamp(PlayerPrefs.GetInt("mode", (int)s.Mode), 0, (int)GameMode.Strider);
             s.CpuCount = Mathf.Clamp(PlayerPrefs.GetInt("cpu", s.CpuCount), 1, 3);
             s.MatchSeconds = PlayerPrefs.GetInt("sec", s.MatchSeconds);
             s.Speed = (SpeedPreset)PlayerPrefs.GetInt("speed", (int)s.Speed);

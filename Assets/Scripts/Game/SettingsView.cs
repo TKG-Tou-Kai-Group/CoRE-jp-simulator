@@ -30,8 +30,8 @@ namespace CoreSim
                      () => s.Speed = s.Speed == SpeedPreset.Game ? SpeedPreset.Real : SpeedPreset.Game);
             view.Row(content, size, () => s.Sound ? "効果音: ON" : "効果音: OFF", () => s.Sound = !s.Sound);
             view.Row(content, size, () => s.ShowTouchControls ? "タッチ操作パッド: 表示 (タブレット向け)" : "タッチ操作パッド: 非表示", () => s.ShowTouchControls = !s.ShowTouchControls);
-            view.Row(content, size, () => "自分のプログラムを編集 ▶ (オートアタッカー・オート対戦で自分の機体が使う)", () => onEditProgram?.Invoke());
-            view.Row(content, size, () => $"CPU のプログラム (CPU のアタッカー全部とオート対戦の相手): {s.CpuProgramLabel}", () => s.CpuProgramSlot = s.CpuProgramSlot + 1 >= GameSettings.ProgramSlotCount ? -1 : s.CpuProgramSlot + 1);
+            view.Row(content, size, () => "自分のプログラムを編集 ▶ (自分がオートアタッカーのときに使う)", () => onEditProgram?.Invoke());
+            view.Row(content, size, () => $"CPU のプログラム (CPU のアタッカーとオートアタッカー全部): {s.CpuProgramLabel}", () => s.CpuProgramSlot = s.CpuProgramSlot + 1 >= GameSettings.ProgramSlotCount ? -1 : s.CpuProgramSlot + 1);
 
             view.Section(content, "かんたんルール (HP 200、自動復活なし)");
             view.Row(content, size, () => $"ひとりで対戦のときの CPU の数: {s.CpuCount} 台", () => s.CpuCount = s.CpuCount % 3 + 1);

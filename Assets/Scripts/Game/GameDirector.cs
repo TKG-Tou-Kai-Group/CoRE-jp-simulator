@@ -646,11 +646,6 @@ namespace CoreSim
                         slots.Add((0, SlotKind.Host, "P1", false));
                         slots.Add((1, SlotKind.Human, "P2", false));
                         break;
-                    case GameMode.AutoBattle:
-                        // 自分のプログラム vs 相手のプログラム (どちらもオートアタッカー。自分は見ているだけ)
-                        slots.Add((0, SlotKind.Host, "P1 (自分のプログラム)", false));
-                        slots.Add((1, SlotKind.Cpu, $"相手 ({Settings.CpuProgramLabel})", false));
-                        break;
                     default:
                         slots.Add((0, SlotKind.Host, "P1", false));
                         slots.Add((1, SlotKind.Cpu, "的", true));
@@ -688,7 +683,6 @@ namespace CoreSim
                     : Tuning.StartPoses[slot.slot];
                 RobotKind kind = tournament
                     ? KindForSlot(slot.slot, slotNumbers, buildersPerSide, autosPerSide)
-                    : Settings.Mode == GameMode.AutoBattle && Role == NetRole.None ? RobotKind.AutoAttacker
                     : (slot.kind == SlotKind.Host && Settings.Role == PlayerRole.Builder ? RobotKind.Builder
                        : slot.kind == SlotKind.Host && Settings.Role == PlayerRole.AutoAttacker ? RobotKind.AutoAttacker : RobotKind.Attacker);
                 RobotAgent agent = RobotFactory.Create(slot.slot, pose, Settings, kind);
