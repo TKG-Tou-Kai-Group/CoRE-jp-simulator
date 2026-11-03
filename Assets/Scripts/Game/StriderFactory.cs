@@ -16,8 +16,8 @@ namespace CoreSim
         public const float Splay = 10f;        // 脚を外へ開く角度 [deg] (股関節の外転は無いので固定)。接地幅を股関節の幅より広くする
         /// <summary>横の安定の補助: ロールを戻すトルク [N·m/rad] と減衰。脚にピッチしか無いので、無いと 2 本脚で接地した
         /// 瞬間に横へ倒れる (実機は股関節の外転で踏ん張る)。0 にすれば補助なし。</summary>
-        public const float RollAssist = 80f;
-        public const float RollAssistDamping = 8f;
+        public const float RollAssist = 55f;   // 股関節の幅を広げたぶん少し弱く
+        public const float RollAssistDamping = 6f;
         /// <summary>向きの補助: 進行方向 (<see cref="Heading"/>) へ向け直すトルク [N·m/rad] と減衰。脚にピッチしか無いので
         /// 左右の脚の差で向きを直せず、歩くうちに回ってコースから出る。0 にすれば補助なし。</summary>
         public const float YawAssist = 60f;
