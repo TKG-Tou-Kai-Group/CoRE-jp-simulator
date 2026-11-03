@@ -36,6 +36,19 @@ namespace CoreSim
         private string m_Mode = "";
         private bool m_PathOk;
 
+        public void DebugPath(List<Vector3> points)
+        {
+            points.Clear();
+            if (Self == null) return;
+            points.Add(Self.transform.position);
+            Vector3[] corners = m_Path.corners;
+            if (corners != null)
+            {
+                for (int i = Mathf.Max(1, m_PathIndex); i < corners.Length; i++) points.Add(corners[i]);
+            }
+            if (m_Target != null) points.Add(m_Target.transform.position);
+        }
+
         /// <summary>F9 のデバッグ表示: 今の判断、経路、速度。</summary>
         public string Status
         {

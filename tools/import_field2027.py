@@ -287,6 +287,20 @@ def main():
             stale = os.path.join(args.out, name + ".stl")
             if os.path.exists(stale):
                 os.remove(stale)
+            if g["z"] == "highland":
+                # 谷部の置き場所を溝に沿って壁から遠い側へ 2 つ足す (開始時は空)。2 個 (0.6 m) だけでは通路が狭く、
+                # ブロックゾーンのブロックを足して広げたいため (7.3 は個数を限っていない)
+                for side in ("red", "blue"):
+                    vs = sorted((sl for sl in manifest["slots"] if sl["kind"] == "valley" and sl["side"] == side), key=lambda sl: sl["index"])
+                    if len(vs) != 2:
+                        continue
+                    dx, dz = vs[1]["x"] - vs[0]["x"], vs[1]["z"] - vs[0]["z"]
+                    for k in (1, 2):
+                        extra = dict(vs[1])
+                        extra["x"] = round(vs[1]["x"] + dx * k, 4)
+                        extra["z"] = round(vs[1]["z"] + dz * k, 4)
+                        extra["index"] = 2 + k
+                        manifest["slots"].append(extra)
             continue
         write_stl(os.path.join(args.out, name + ".stl"), to_ros(v)[f])
         manifest["groups"].append({"file": name, "zone": g["z"], "material": g["m"], "triangles": int(len(f)),

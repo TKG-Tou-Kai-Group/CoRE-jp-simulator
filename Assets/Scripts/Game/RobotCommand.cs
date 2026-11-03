@@ -29,5 +29,7 @@ namespace CoreSim
     public interface IBotStatus
     {
         string Status { get; }
+        /// <summary>今向かっている経路 (自機 → 残りの角 → 目標) を points に入れる。</summary>
+        void DebugPath(System.Collections.Generic.List<Vector3> points);
     }
 }

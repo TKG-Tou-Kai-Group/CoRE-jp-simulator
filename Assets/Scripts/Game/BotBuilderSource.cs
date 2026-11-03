@@ -39,6 +39,19 @@ namespace CoreSim
 
         private PropRegistry Registry => Self != null && Self.Lift != null ? Self.Lift.Registry : null;
 
+        public void DebugPath(List<Vector3> points)
+        {
+            points.Clear();
+            if (Self == null) return;
+            points.Add(Self.transform.position);
+            Vector3[] corners = m_Path.corners;
+            if (corners != null && (m_Phase == Phase.GoToPickup || m_Phase == Phase.GoToPlace))
+            {
+                for (int i = Mathf.Max(1, m_PathIndex); i < corners.Length; i++) points.Add(corners[i]);
+                points.Add(m_Stand);
+            }
+        }
+
         /// <summary>F9 のデバッグ表示: 段階、目標、速度。</summary>
         public string Status
         {

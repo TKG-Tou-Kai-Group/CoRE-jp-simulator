@@ -2057,6 +2057,46 @@
    "yawDeg": 0.0,
    "index": 2,
    "levels": 1
+  },
+  {
+   "kind": "valley",
+   "side": "red",
+   "x": 0.03,
+   "y": 0.0,
+   "z": -6.712,
+   "yawDeg": 0.0,
+   "index": 3,
+   "levels": 1
+  },
+  {
+   "kind": "valley",
+   "side": "red",
+   "x": 0.03,
+   "y": 0.0,
+   "z": -6.412,
+   "yawDeg": 0.0,
+   "index": 4,
+   "levels": 1
+  },
+  {
+   "kind": "valley",
+   "side": "blue",
+   "x": -0.03,
+   "y": 0.0,
+   "z": 6.712,
+   "yawDeg": 0.0,
+   "index": 3,
+   "levels": 1
+  },
+  {
+   "kind": "valley",
+   "side": "blue",
+   "x": -0.03,
+   "y": 0.0,
+   "z": 6.412,
+   "yawDeg": 0.0,
+   "index": 4,
+   "levels": 1
   }
  ],
  "carriers": [

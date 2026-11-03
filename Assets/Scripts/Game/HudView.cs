@@ -181,6 +181,7 @@ namespace CoreSim
             {
                 m_BotDebug.text = ShowBotDebug ? BotDebugText(director) : "";
             }
+            BotDebugLines.Refresh(director.Robots, ShowBotDebug);
             if (Tournament != null && director.Tournament != null)
             {
                 var src = m_Self != null && director.Tournament != null ? director.PlayerInputFor(m_Self) : null;
