@@ -72,7 +72,7 @@ namespace CoreSim
             RectTransform hint = UiKit.Rect(m_Root, "Hint", new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 60f), new Vector2(1500f, 80f));
             UiKit.Image(hint, "bg", new Color(0f, 0f, 0f, 0.45f), Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
             m_Hint = UiKit.Label(hint, "Text",
-                "Q / W: 腿を前 / 後ろ (対角のペアが逆に動く)   O / P: 膝を曲げる / 伸ばす   矢印: 視点を回す   ホイール: 距離   R: やり直し   Esc: メニュー\n" +
+                "Q / W: 腿を前 / 後ろ (対角のペアが逆に動く)   O / P: 膝を曲げる / 伸ばす   矢印: 視点を回す   ホイール: 距離   R: リトライ   Shift+R: 最初から   Esc: メニュー\n" +
                 "パッド: 左スティック上下 = 腿、右スティック上下 = 膝、十字キー = 視点", 20, new Color(0.9f, 0.9f, 0.95f));
         }
 
@@ -105,7 +105,17 @@ namespace CoreSim
             }
         }
 
-        private void Spawn()
+        /// <summary>リトライ: 機体をスタートゾーンに戻す。踏破の記録と計時は続く (7.7)。</summary>
+        private void Retry()
+        {
+            if (m_Finished) { Spawn(); return; }
+            Respawn();
+            m_Fallen = false;
+            m_OutOfLane = false;
+            Say("リトライ: スタートゾーンから (踏破したゾーンの得点は残ります)", 3f);
+        }
+
+        private void Respawn()
         {
             if (m_Strider != null) Destroy(m_Strider.gameObject);
             Vector3 pos = new Vector3(m_Course.StartX, Strider.Thigh * 2f * Mathf.Cos(Strider.StandHip * Mathf.Deg2Rad) + 0.03f, m_Course.LaneCenterZ);
@@ -115,6 +125,12 @@ namespace CoreSim
             m_HipA = 0f;
             m_KneeA = 0f;
             m_Strider.SetTargets(Strider.StandHip, Strider.StandKnee, Strider.StandHip, Strider.StandKnee);
+        }
+
+        /// <summary>最初から (記録も計時も消す)。</summary>
+        private void Spawn()
+        {
+            Respawn();
             m_Course.Reset();
             m_Time = 0f;
             m_Started = false;
@@ -138,8 +154,13 @@ namespace CoreSim
             bool esc = (kb != null && kb.escapeKey.isPressed) || (pad != null && pad.startButton.isPressed);
             if (esc && !m_EscHeld) { m_Director.BackToMenu(); return; }
             m_EscHeld = esc;
+            // R = リトライ (7.7: スタートゾーンからやり直し。踏破済みのゾーンの得点は残り、計時も続く)。Shift+R = 最初から
             bool reset = (kb != null && kb.rKey.isPressed) || (pad != null && pad.buttonNorth.isPressed);
-            if (reset && !m_ResetHeld) Spawn();
+            if (reset && !m_ResetHeld)
+            {
+                bool full = kb != null && (kb.leftShiftKey.isPressed || kb.rightShiftKey.isPressed);
+                if (full) Spawn(); else Retry();
+            }
             m_ResetHeld = reset;
 
             // 視点 (矢印 / 十字キー / 右スティック横、ホイール)
@@ -224,7 +245,7 @@ namespace CoreSim
             }
             if (outside && !m_OutOfLane) Say("エリアの外に接地 (大会では反則)", 3f);
             m_OutOfLane = outside;
-            if (m_Strider.Fallen && !m_Fallen) Say("転倒  (R でスタートからやり直し)", 4f);
+            if (m_Strider.Fallen && !m_Fallen) Say("転倒  (起き上がれなければ R でリトライ。踏破した得点は残ります)", 4f);
             m_Fallen = m_Strider.Fallen;
         }
 
