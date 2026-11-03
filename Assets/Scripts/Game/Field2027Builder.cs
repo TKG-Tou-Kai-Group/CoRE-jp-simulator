@@ -217,7 +217,7 @@ namespace CoreSim
             BuildSlots(data);
             SpawnProps(root.transform, data, remote: false);
             SpawnCarriers(root.transform, data);
-            // 谷部の橋 (NavMesh を焼く前に。高台が左右で繋がり、CPU の経路が外周の高台を通れる)
+            // 谷部の NavMesh の繋ぎ (CPU の経路が外周の高台を通れる。物理的な橋は無い)
             foreach (string side in new[] { "red", "blue" })
             {
                 ValleyBridge.Create(root.transform, data.Props, side, m.fieldDepth / 2f);

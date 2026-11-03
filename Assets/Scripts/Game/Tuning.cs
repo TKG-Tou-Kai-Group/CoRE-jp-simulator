@@ -84,7 +84,6 @@ namespace CoreSim
         public const int LayerMinimapOnly = 7;
         public const int LayerRobot = 8;
         public const int LayerProp = 9;              // ブロック・コンテナ
-        public const int LayerBridge = 10;           // 谷部の橋 (機体だけが乗る。ブロック・コンテナは溝に落ちる)
 
         // ---- ビルダー (ルールブック 14.1: 開始後 1200 mm 角まで) ----
         public const float BuilderMass = 26f;
