@@ -33,6 +33,7 @@ namespace CoreSim
 
             view.Section(content, "かんたんルール (HP 200、自動復活なし)");
             view.Row(content, size, () => $"ひとりで対戦のときの CPU の数: {s.CpuCount} 台", () => s.CpuCount = s.CpuCount % 3 + 1);
+            view.Row(content, size, () => $"CPU のオートアタッカーのプログラム (オート対戦の相手も): {s.CpuProgramLabel}", () => s.CpuProgramSlot = s.CpuProgramSlot + 1 >= GameSettings.ProgramSlotCount ? -1 : s.CpuProgramSlot + 1);
             view.Row(content, size, () => $"試合時間: {s.MatchSeconds} 秒", () => s.MatchSeconds = s.MatchSeconds switch { 60 => 120, 120 => 180, _ => 60 });
 
             view.Section(content, "大会ルール (CoRE-1 ルールブック V27.1.3、アタッカー・ビルダー・オートアタッカー)");

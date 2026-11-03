@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace CoreSim
@@ -12,6 +13,8 @@ namespace CoreSim
         LocalVersus,
         /// <summary>時間無制限の練習。撃ち返してこない的が 1 台いる。</summary>
         Practice,
+        /// <summary>オート対戦。自分のプログラムのオートアタッカー vs 相手のプログラム (保存したスロットから選ぶ)。見ているだけ。</summary>
+        AutoBattle,
     }
 
     public enum Ruleset
@@ -64,6 +67,27 @@ namespace CoreSim
         public int BuildersPerSide = 1;     // 0..2 (RobotsPerSide のうちビルダーにする台数。アタッカーは 1 台以上)
         public int AutosPerSide = 0;        // 0..1 各同盟のオートアタッカー (10.6: 1 台まで。アタッカー + ビルダーとは別枠)
         public string AutoProgramText = "";   // 自分のオートアタッカーのプログラム (空なら既定)
+
+        /// <summary>名前を付けて保存したプログラム。</summary>
+        [System.Serializable] public class ProgramSlot { public string Name = ""; public string Text = ""; }
+        [System.Serializable] private class ProgramSlotList { public List<ProgramSlot> Slots = new List<ProgramSlot>(); }
+        public const int ProgramSlotCount = 8;
+        public List<ProgramSlot> ProgramSlots = new List<ProgramSlot>();
+        /// <summary>CPU のオートアタッカー (大会ルールの CPU 同盟、オート対戦の相手) が使うプログラムのスロット (-1 = 既定)。
+        /// 保存したプログラムを CPU に持たせることで難易度を自分で調整できる。</summary>
+        public int CpuProgramSlot = -1;
+
+        public string CpuProgramText => CpuProgramSlot >= 0 && CpuProgramSlot < ProgramSlots.Count ? ProgramSlots[CpuProgramSlot].Text ?? "" : "";
+        public string CpuProgramLabel => CpuProgramSlot < 0 || CpuProgramSlot >= ProgramSlots.Count ? "既定のプログラム"
+            : string.IsNullOrWhiteSpace(ProgramSlots[CpuProgramSlot].Text) ? $"スロット {CpuProgramSlot + 1} (空 → 既定)"
+            : $"スロット {CpuProgramSlot + 1}: {(string.IsNullOrWhiteSpace(ProgramSlots[CpuProgramSlot].Name) ? $"プログラム {CpuProgramSlot + 1}" : ProgramSlots[CpuProgramSlot].Name)}";
+
+        private void EnsureSlots()
+        {
+            if (ProgramSlots == null) ProgramSlots = new List<ProgramSlot>();
+            while (ProgramSlots.Count < ProgramSlotCount) ProgramSlots.Add(new ProgramSlot());
+            if (ProgramSlots.Count > ProgramSlotCount) ProgramSlots.RemoveRange(ProgramSlotCount, ProgramSlots.Count - ProgramSlotCount);
+        }
         public int BestOf = 1;              // 1 / 3 / 5
         public PlayerRole Role = PlayerRole.Head;   // 自分の機体
         public bool PlayerIsRed;            // false = 青同盟
@@ -112,6 +136,9 @@ namespace CoreSim
             PlayerPrefs.SetInt("builders", BuildersPerSide);
             PlayerPrefs.SetInt("autos", AutosPerSide);
             PlayerPrefs.SetString("autoprog", AutoProgramText ?? "");
+            EnsureSlots();
+            PlayerPrefs.SetString("autoslots", JsonUtility.ToJson(new ProgramSlotList { Slots = ProgramSlots }));
+            PlayerPrefs.SetInt("cpuslot", CpuProgramSlot);
             PlayerPrefs.SetInt("red", PlayerIsRed ? 1 : 0);
             PlayerPrefs.SetInt("mag", Magazine);
             PlayerPrefs.SetInt("fire", Mathf.RoundToInt(FireInterval * 1000f));
@@ -137,6 +164,14 @@ namespace CoreSim
             s.BuildersPerSide = Mathf.Clamp(PlayerPrefs.GetInt("builders", 1), 0, 2);
             s.AutosPerSide = Mathf.Clamp(PlayerPrefs.GetInt("autos", 0), 0, 1);
             s.AutoProgramText = PlayerPrefs.GetString("autoprog", "");
+            try
+            {
+                string json = PlayerPrefs.GetString("autoslots", "");
+                if (!string.IsNullOrEmpty(json)) s.ProgramSlots = JsonUtility.FromJson<ProgramSlotList>(json)?.Slots ?? new List<ProgramSlot>();
+            }
+            catch (System.Exception) { s.ProgramSlots = new List<ProgramSlot>(); }
+            s.EnsureSlots();
+            s.CpuProgramSlot = Mathf.Clamp(PlayerPrefs.GetInt("cpuslot", -1), -1, ProgramSlotCount - 1);
             s.BestOf = PlayerPrefs.GetInt("bestof", 1);
             s.Role = (PlayerRole)Mathf.Clamp(PlayerPrefs.GetInt("role", PlayerPrefs.GetInt("head", 1) != 0 ? 0 : 1), 0, 3);
             s.PlayerIsRed = PlayerPrefs.GetInt("red", 0) != 0;

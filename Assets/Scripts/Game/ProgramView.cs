@@ -47,6 +47,7 @@ namespace CoreSim
             Row(layout, 12f);
             UiKit.Button(foot, "行を追加", new Vector2(240f, 60f), () => { if (view.m_Program.Rules.Count < AutoProgram.MaxRules) { view.m_Program.Rules.Add(AutoProgram.ParseRule("always > engage=5 @nearest")); view.Changed(); } }, new Color(0.2f, 0.45f, 0.3f, 0.95f), 26);
             UiKit.Button(foot, "既定に戻す", new Vector2(240f, 60f), () => { view.m_Program = AutoProgram.Default(); view.Changed(); }, new Color(0.35f, 0.3f, 0.2f, 0.95f), 26);
+            UiKit.Button(foot, "保存 / 読み込み", new Vector2(260f, 60f), () => view.OpenSlots(), new Color(0.3f, 0.3f, 0.45f, 0.95f), 26);
             UiKit.Button(foot, "戻る", new Vector2(240f, 60f), () => { view.Save(); onBack?.Invoke(); }, new Color(0.25f, 0.35f, 0.5f, 0.95f), 26);
             RectTransform prev = UiKit.Rect(root, "Preview", new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 40f), new Vector2(1560f, 40f));
             view.m_Preview = UiKit.Label(prev, "Text", "", 18, new Color(0.7f, 0.7f, 0.75f));
@@ -154,6 +155,28 @@ namespace CoreSim
             UiKit.Button(row, "×", new Vector2(44f, 50f), () => { m_Program.Rules.RemoveAt(index); Changed(); }, new Color(0.5f, 0.2f, 0.2f, 0.95f), 22);
         }
 
+        private ProgramSlotsView m_Slots;
+
+        private void OpenSlots()
+        {
+            if (m_Slots != null) return;
+            Save();
+            m_Slots = ProgramSlotsView.Create(transform.parent, m_Settings, () =>
+            {
+                // 読み込んだ: 編集中のプログラムを置き換える
+                m_Program = AutoProgram.Parse(m_Settings.AutoProgramText);
+                if (m_Program.Rules.Count == 0) m_Program = AutoProgram.Default();
+                CloseSlots();
+                Rebuild();
+            }, CloseSlots);
+        }
+
+        private void CloseSlots()
+        {
+            if (m_Slots != null) Destroy(m_Slots.gameObject);
+            m_Slots = null;
+        }
+
         private MapPickerView m_Map;
 
         private void OpenMap(AutoRule rule)
@@ -173,7 +196,11 @@ namespace CoreSim
             m_Map = null;
         }
 
-        private void OnDestroy() => CloseMap();
+        private void OnDestroy()
+        {
+            CloseMap();
+            CloseSlots();
+        }
 
         private void Swap(int a, int b)
         {
