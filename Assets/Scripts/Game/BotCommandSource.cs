@@ -35,6 +35,7 @@ namespace CoreSim
         private RobotAgent m_Target;
         private string m_Mode = "";
         private bool m_PathOk;
+        private float m_NextLogTime;
 
         public void DebugPath(List<Vector3> points)
         {
@@ -89,6 +90,7 @@ namespace CoreSim
             m_Current = Think();
             m_Current = Unstick(m_Current);
             m_Current = GuardZones(m_Current);
+            BotLog.Maybe(Self, this, ref m_NextLogTime);
             return m_Current;
         }
 

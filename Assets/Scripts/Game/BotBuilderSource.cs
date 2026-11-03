@@ -35,6 +35,7 @@ namespace CoreSim
         private float m_EscapeUntil = -1f;
         private float m_EscapeTurn = 1f;
         private bool m_GrabPulse;
+        private float m_NextLogTime;
         private readonly HashSet<FieldProp> m_Failed = new HashSet<FieldProp>();
 
         private PropRegistry Registry => Self != null && Self.Lift != null ? Self.Lift.Registry : null;
@@ -75,6 +76,7 @@ namespace CoreSim
             if (Time.time < m_NextThinkTime) return m_Current;
             m_NextThinkTime = Time.time + 0.1f;
             m_Current = Unstick(Think());
+            BotLog.Maybe(Self, this, ref m_NextLogTime);
             return m_Current;
         }
 

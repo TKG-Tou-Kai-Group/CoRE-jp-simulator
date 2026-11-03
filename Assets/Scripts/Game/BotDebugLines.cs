@@ -4,6 +4,26 @@ using UnityEngine;
 
 namespace CoreSim
 {
+    /// <summary>CPU の判断を 2 秒ごとに Unity のログへ出す (Editor では常に、ビルドでは F9 の表示中だけ)。</summary>
+    public static class BotLog
+    {
+        private static readonly List<Vector3> s_Points = new List<Vector3>();
+
+        public static void Maybe(RobotAgent self, IBotStatus bot, ref float nextTime)
+        {
+            if (Time.time < nextTime) return;
+            nextTime = Time.time + 2f;
+            if (!Application.isEditor && !HudView.ShowBotDebug) return;
+            if (self == null) return;
+            GameDirector d = GameDirector.Instance;
+            if (d == null || !d.RobotsMayMove) return;
+            bot.DebugPath(s_Points);
+            string next = s_Points.Count >= 2 ? $"次 ({s_Points[1].x:F1},{s_Points[1].z:F1})" : "次 なし";
+            Vector3 p = self.transform.position;
+            Debug.Log($"[Bot] {self.DisplayName} {self.KindName} ({p.x:F1},{p.z:F1}) 向き {self.transform.eulerAngles.y:F0}° {next}  {bot.Status}");
+        }
+    }
+
     /// <summary>F9 のデバッグ表示: CPU 全機の経路 (自機 → 経路の角 → 目標) を床の少し上に線で描く。</summary>
     public static class BotDebugLines
     {

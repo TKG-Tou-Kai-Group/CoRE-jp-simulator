@@ -61,7 +61,56 @@ namespace CoreSim
             float t0 = Time.realtimeSinceStartup;
             surface.BuildNavMesh();
             Debug.Log($"[Navigation] NavMesh を焼いた ({(Time.realtimeSinceStartup - t0) * 1000f:F0} ms)");
+            LogSummary(field);
             return surface;
+        }
+
+        /// <summary>
+        /// 焼けた NavMesh の大きさと、スタートゾーンから中央・相手スタートゾーンへの経路の有無をログに出す。
+        /// CPU が動かないときに「NavMesh が無い / 繋がっていない / 遠回り」を切り分けるため。
+        /// </summary>
+        private static void LogSummary(Field2027Data field)
+        {
+            NavMeshTriangulation tri = NavMesh.CalculateTriangulation();
+            if (tri.vertices == null || tri.vertices.Length == 0)
+            {
+                Debug.LogWarning("[Navigation] NavMesh が空 (頂点 0)。フィールドの当たり判定が集まっていない");
+                return;
+            }
+            Vector3 min = tri.vertices[0], max = tri.vertices[0];
+            foreach (Vector3 v in tri.vertices) { min = Vector3.Min(min, v); max = Vector3.Max(max, v); }
+            Debug.Log($"[Navigation] 頂点 {tri.vertices.Length}、三角形 {tri.indices.Length / 3}、範囲 x[{min.x:F1},{max.x:F1}] y[{min.y:F2},{max.y:F2}] z[{min.z:F1},{max.z:F1}]");
+            if (field == null) return;
+            int mask = NavMesh.AllAreas & ~(1 << SupplyArea);
+            foreach (string side in new[] { "red", "blue" })
+            {
+                string enemy = side == "red" ? "blue" : "red";
+                Vector3 from = field.Spawn(side, 0).position;
+                Probe($"{side} スタート → 中央", from, new Vector3(0f, 0f, side == "red" ? 2.5f : -2.5f), mask);
+                Probe($"{side} スタート → {enemy} スタート", from, field.Spawn(enemy, 0).position, mask);
+                Probe($"{side} スタート → {enemy} ブロックゾーン付近", from, side == "red" ? new Vector3(3f, 0f, 3.5f) : new Vector3(-3f, 0f, -3.5f), mask);
+            }
+        }
+
+        private static void Probe(string label, Vector3 from, Vector3 to, int mask)
+        {
+            var path = new NavMeshPath();
+            bool a = NavMesh.SamplePosition(from, out NavMeshHit ha, 1.5f, NavMesh.AllAreas);
+            bool b = NavMesh.SamplePosition(to, out NavMeshHit hb, 2.0f, mask);
+            if (!a || !b)
+            {
+                Debug.LogWarning($"[Navigation] {label}: NavMesh の上に点が無い (from={a}, to={b})");
+                return;
+            }
+            NavMesh.CalculatePath(ha.position, hb.position, mask, path);
+            float length = 0f;
+            var sb = new System.Text.StringBuilder();
+            for (int i = 0; i < path.corners.Length; i++)
+            {
+                if (i > 0) length += Vector3.Distance(path.corners[i - 1], path.corners[i]);
+                sb.Append($"({path.corners[i].x:F1},{path.corners[i].z:F1}) ");
+            }
+            Debug.Log($"[Navigation] {label}: {path.status}、{path.corners.Length} 角、{length:F1} m: {sb}");
         }
     }
 }

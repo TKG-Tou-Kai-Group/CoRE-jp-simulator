@@ -70,6 +70,7 @@ namespace CoreSim
 
         private void Update()
         {
+            if (m_Link == null || m_Registry == null || m_Slots == null) return;   // Editor のホットリロード後は参照が消える
             if (Time.time < m_NextCheck) return;
             m_NextCheck = Time.time + 0.5f;
             // 埋まっている置き場所 (クライアントは中身を持たないので開始時の 2 個とみなす)
