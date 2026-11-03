@@ -8,7 +8,7 @@ namespace CoreSim.Tests
         [Test]
         public void ParseAndFormatRoundTrip()
         {
-            string text = "hp<30 & enemy<8 > engage=6 @weakest\nbase > base\nalways > goto=left @head\nammo<1 > retreat\ntime>200 & ally<3 > hold @builder";
+            string text = "hp<30 & enemy<8 > engage=6 @weakest\nbase > base\nalways > goto=left\nammo<1 > retreat\ntime>200 & ally<3 > hold @builder";
             AutoProgram p = AutoProgram.Parse(text);
             Assert.AreEqual(5, p.Rules.Count);
             Assert.AreEqual(2, p.Rules[0].Conditions.Count);
@@ -45,7 +45,7 @@ namespace CoreSim.Tests
             AutoProgram p = AutoProgram.Parse("always > goto=enemystart @head\nenemy<5 > goto=nowhere");
             Assert.AreEqual(AutoPoint.EnemyStart, p.Rules[0].Point);
             Assert.AreEqual(AutoPoint.Center, p.Rules[1].Point);   // 知らない名前は中央
-            Assert.AreEqual("always > goto=enemystart @head\nenemy<5 > goto=center @nearest", AutoProgram.Format(p));
+            Assert.AreEqual("always > goto=enemystart\nenemy<5 > goto=center", AutoProgram.Format(p));   // 移動に狙いは付かない
         }
 
         [Test]

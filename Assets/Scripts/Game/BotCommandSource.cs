@@ -185,7 +185,7 @@ namespace CoreSim
                     }
                 }
             }
-            // プログラムの指示: 移動 / 退避 / 待機 (着いたら待機し、射程内の相手を撃つ)
+            // プログラムの指示: 移動 / 退避 (撃たない。着いたら止まる) / 待機 (その場で射程内の相手を撃つ)
             if (Directive == BotDirective.Retreat || Directive == BotDirective.GoTo)
             {
                 Vector3 goal = Directive == BotDirective.Retreat ? RetreatPoint() : DirectivePoint;
@@ -196,8 +196,10 @@ namespace CoreSim
                     m_Mode = (Directive == BotDirective.Retreat ? "退避" : "移動") + $" ({goal.x:F1},{goal.z:F1}) へ {flat.magnitude:F1} m";
                     return Steer(t, goal, 1.0f, blockedAhead, blockedLeft, blockedRight);
                 }
+                m_Mode = "到着して停止";
+                return cmd;
             }
-            if (Directive == BotDirective.Hold || Directive == BotDirective.GoTo || Directive == BotDirective.Retreat)
+            if (Directive == BotDirective.Hold)
             {
                 m_Mode = "待機";
                 if (target != null)

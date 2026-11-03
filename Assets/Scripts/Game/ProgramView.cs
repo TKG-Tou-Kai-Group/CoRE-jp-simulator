@@ -144,7 +144,7 @@ namespace CoreSim
                 UiKit.Button(row, AutoProgram.PointName(rule.Point), new Vector2(200f, 50f), () => { rule.Param = ((int)rule.Point + 1) % AutoRule.PointCount; Changed(); }, new Color(0.3f, 0.35f, 0.3f, 0.95f), 18);
                 UiKit.Button(row, "地図で選ぶ", new Vector2(100f, 50f), () => OpenMap(rule), new Color(0.2f, 0.35f, 0.45f, 0.95f), 18);
             }
-            if (rule.Action == AutoAction.Engage || rule.Action == AutoAction.Hold || rule.Action == AutoAction.GoTo)
+            if (rule.Action == AutoAction.Engage || rule.Action == AutoAction.Hold)
             {
                 UiKit.Button(row, AutoProgram.TargetName(rule.Target), new Vector2(190f, 50f), () => { rule.Target = (AutoTarget)(((int)rule.Target + 1) % 5); Changed(); }, new Color(0.3f, 0.25f, 0.4f, 0.95f), 18);
             }

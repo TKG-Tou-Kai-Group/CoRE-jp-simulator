@@ -24,7 +24,7 @@ namespace CoreSim.Rules
     {
         Engage = 0,       // 相手に近づいて撃つ (間合い N m を保つ)
         AttackBase = 1,   // 相手の陣地を攻撃 (できない時間は Engage)
-        GoTo = 2,         // 地点へ移動 (着いたら待機。撃てる相手がいれば撃つ)
+        GoTo = 2,         // 地点へ移動 (撃たない。着いたら止まる。撃つなら上の行に「敵が近い」の条件で交戦や待機を書く)
         Hold = 3,         // その場で待機し、射程内の相手を撃つ
         Retreat = 4,      // 自同盟のスタートゾーンへ戻る
     }
@@ -196,7 +196,7 @@ namespace CoreSim.Rules
             sb.Append(" > ").Append(s_Actions[(int)r.Action]);
             if (r.Action == AutoAction.Engage) sb.Append('=').Append(r.Param.ToString("0.##", CultureInfo.InvariantCulture));
             else if (r.Action == AutoAction.GoTo) sb.Append('=').Append(s_Points[(int)r.Point]);
-            if (r.Action == AutoAction.Engage || r.Action == AutoAction.Hold || r.Action == AutoAction.GoTo)
+            if (r.Action == AutoAction.Engage || r.Action == AutoAction.Hold)
             {
                 sb.Append(" @").Append(s_Targets[(int)r.Target]);
             }
@@ -315,7 +315,7 @@ namespace CoreSim.Rules
         public static string ActionName(AutoAction a) => a switch
         {
             AutoAction.AttackBase => "相手陣地を攻撃",
-            AutoAction.GoTo => "地点へ移動",
+            AutoAction.GoTo => "地点へ移動 (撃たない)",
             AutoAction.Hold => "その場で待機して撃つ",
             AutoAction.Retreat => "スタートゾーンへ戻る",
             _ => "敵に近づいて撃つ (間合い N m)",
