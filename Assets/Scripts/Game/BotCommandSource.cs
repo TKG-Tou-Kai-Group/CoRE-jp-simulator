@@ -42,7 +42,9 @@ namespace CoreSim
             get
             {
                 float speed = Self != null && Self.Drive != null ? Self.Drive.Speed : 0f;
-                string path = m_Path.corners != null && m_Path.corners.Length >= 2 ? $"経路 {m_Path.corners.Length} 角" : (m_PathOk ? "経路 なし" : "経路 失敗");
+                string path = m_Path.corners != null && m_Path.corners.Length >= 2
+                    ? $"経路 {m_Path.corners.Length} 角" + (m_Path.status == NavMeshPathStatus.PathPartial ? " (途中まで)" : "")
+                    : (m_PathOk ? "経路 なし" : "経路 失敗");
                 string escape = Time.time < m_EscapeUntil ? "  [脱出中]" : "";
                 return $"{m_Mode}  {path}  {speed:F2} m/s  指令 ({m_Current.Move.x:F1}, {m_Current.Move.y:F1}, 旋回 {m_Current.Turn:F1}){escape}";
             }
@@ -166,13 +168,19 @@ namespace CoreSim
                 Vector3 to = target.transform.position - t.position;
                 to.y = 0f;
                 float dist = to.magnitude;
-                bool clearLine = !Physics.Raycast(t.position + Vector3.up * 0.45f, to.normalized, dist - 0.8f,
-                                                  ~((1 << Tuning.LayerDisc) | (1 << Tuning.LayerMinimapOnly) | (1 << Tuning.LayerRobot)));
-                if (dist > PreferredRange + 1.5f && (!clearLine || dist > 9f))
+                int losMask = ~((1 << Tuning.LayerDisc) | (1 << Tuning.LayerMinimapOnly) | (1 << Tuning.LayerRobot));
+                Vector3 dir = to.normalized;
+                // 射線 (装甲板の高さ) と、走って行ける線 (バンパーの高さとバンカーの高さ)。射線はバンカーや
+                // ブロックの上を越えて通るので、それだけで直進すると構造物に突っ掛かってその場でうろつく
+                bool clearLine = !Physics.Raycast(t.position + Vector3.up * 0.45f, dir, dist - 0.8f, losMask);
+                bool clearDrive = clearLine &&
+                                  !Physics.Raycast(t.position + Vector3.up * 0.15f, dir, dist - 0.8f, losMask) &&
+                                  !Physics.Raycast(t.position + Vector3.up * 0.32f, dir, dist - 0.8f, losMask);
+                if (dist > 9f || (!clearDrive && dist > 2.5f))
                 {
-                    // 遠い・見えないときは NavMesh の経路で近づく (スロープの先の谷などへ落ちない)
-                    m_Mode = $"{target.DisplayName} へ接近 {dist:F1} m" + (blockedAhead ? " 前方に障害物" : "");
-                    return Steer(t, target.transform.position, PreferredRange, blockedAhead, blockedLeft, blockedRight);
+                    // 遠い・真っ直ぐ行けないときは NavMesh の経路で近づく (スロープの先の谷などへ落ちない)
+                    m_Mode = $"{target.DisplayName} へ接近 {dist:F1} m" + (clearDrive ? "" : " (直進不可)") + (blockedAhead ? " 前方に障害物" : "");
+                    return Steer(t, target.transform.position, clearDrive ? PreferredRange : 1.5f, blockedAhead, blockedLeft, blockedRight);
                 }
                 float bearing = SignedBearing(t, to) + m_AimOffsetDeg;
                 cmd.Turn = Mathf.Clamp(bearing / 30f, -1f, 1f);

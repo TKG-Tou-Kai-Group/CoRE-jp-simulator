@@ -25,6 +25,7 @@ namespace CoreSim
             QualitySettings.vSyncCount = 1;
             Physics.IgnoreLayerCollision(Tuning.LayerDisc, Tuning.LayerDisc, true);
             Physics.IgnoreLayerCollision(Tuning.LayerMinimapOnly, Tuning.LayerMinimapOnly, true);
+            Physics.IgnoreLayerCollision(Tuning.LayerBridge, Tuning.LayerProp, true);   // 谷部の橋はブロック・コンテナを受けない
 
             var root = new GameObject("CoRE Simulator");
             root.AddComponent<GameDirector>();

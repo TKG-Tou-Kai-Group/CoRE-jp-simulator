@@ -43,8 +43,8 @@ namespace CoreSim
         // 置ける範囲: 持っている物の底面と、次に置く段の底面の差
         public const float PlaceRange = 0.15f;            // 水平。半分は重なっている必要がある
         public const float PlaceHeightTolerance = 0.12f;  // 高さ。スポットの段の間隔 (0.275) より小さく
-        public const float ValleyPlaceRange = 0.45f;      // 谷部は広め: 高台の上から溝へ落とし込む
-        public const float ValleyPlaceDepth = 0.40f;      // 谷部は上から (高台の床の高さ 0.2 + 余裕)
+        public const float ValleyPlaceRange = 0.55f;      // 谷部は広め: 高台の上から溝へ落とし込む
+        public const float ValleyPlaceDepth = 0.70f;      // 谷部は上から (高台の床 0.2 + ハンドを上げたまま放しても入る余裕)
 
         /// <summary>この置き場所に置ける範囲 (水平、上から、下から)。谷部はビルドサイトと同じく「近くで放せば揃えて入る」。</summary>
         public void Tolerance(out float flat, out float above, out float below)
@@ -91,8 +91,12 @@ namespace CoreSim
             foreach (FieldProp p in Props) p.ResetHome();
         }
 
+        /// <summary>クライアントの写し (置き場所の中身はスナップショットからは分からない)。</summary>
+        public bool IsRemote { get; private set; }
+
         public void SetRemote(bool remote)
         {
+            IsRemote = remote;
             foreach (PropSlot s in Slots) s.Stack.Clear();
             foreach (FieldProp p in Props) p.SetRemote(remote);
         }
