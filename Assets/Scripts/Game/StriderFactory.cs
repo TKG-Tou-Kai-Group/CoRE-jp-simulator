@@ -9,8 +9,8 @@ namespace CoreSim
     /// </summary>
     public sealed class Strider : MonoBehaviour
     {
-        public const float Thigh = 0.22f;      // 股関節から膝 [m]
-        public const float Calf = 0.22f;       // 膝から脚先 [m]
+        public const float Thigh = 0.30f;      // 股関節から膝 [m]。15.3 の上限は 400 mm。0.22 だとハードル (30 cm) で後脚がつかえた
+        public const float Calf = 0.30f;       // 膝から脚先 [m]。直立の高さは約 0.54 m、脚を畳めば脚先を 0.45 m 上げられる
         public const float HipX = 0.15f;       // 胴体の中心から股関節まで (左右)。狭いと横に転ぶ
         public const float HipZ = 0.25f;       // (前後)。長いほどピッチ方向に安定し、ハードルを越えるとき前後の脚が同時に引っ掛からない
         public const float Splay = 10f;        // 脚を外へ開く角度 [deg] (股関節の外転は無いので固定)。接地幅を股関節の幅より広くする
@@ -33,14 +33,14 @@ namespace CoreSim
         public const float HipLimit = 90f;     // 股関節の可動域 [deg] (前後)。ハードル (30 cm) を越えるには腿を水平近くまで上げる
         public const float KneeMin = 5f;       // 膝 (脛を後ろへ曲げる向きが正)
         public const float KneeMax = 160f;     // 脚を畳んで脚先を股関節の近くまで引き上げられる
-        public const float StandHip = 25f;     // 直立時の腿 (前へ 25 度)。膝 50 度と合わせると脚先が股関節の真下に来て、胴体の高さは 0.40 m
+        public const float StandHip = 25f;     // 直立時の腿 (前へ 25 度)。膝 50 度と合わせると脚先が股関節の真下に来て、胴体の高さは約 0.54 m
         public const float StandKnee = 50f;    // 直立時の膝
         // 関節のサーボ。ArticulationDrive の stiffness / damping は目標角との差 (Unity は度で指定するが内部はラジアン) に掛かる
         // ので、度で考えるより桁が大きい値が要る。胴体 6 kg を 4 本で支えるには股関節に 5〜10 N·m。
         // (最初 6 / 0.6 / 40 にしたら立てなかった)
-        public const float Stiffness = 2000f;
-        public const float Damping = 100f;
-        public const float ForceLimit = 150f;  // [N·m] 実機 (Unitree Go2 23.7、MEVIUS 30 前後) より強め。手触り優先
+        public const float Stiffness = 2500f;
+        public const float Damping = 120f;
+        public const float ForceLimit = 200f;  // [N·m] 実機 (Unitree Go2 23.7、MEVIUS 30 前後) より強め。手触り優先 (脚が長いぶん必要)
 
         public ArticulationBody Body { get; private set; }
         public ArticulationBody[] Hips { get; } = new ArticulationBody[4];

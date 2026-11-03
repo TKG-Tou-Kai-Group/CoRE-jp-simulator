@@ -108,7 +108,7 @@ namespace CoreSim
         private void Spawn()
         {
             if (m_Strider != null) Destroy(m_Strider.gameObject);
-            Vector3 pos = new Vector3(m_Course.StartX, 0.42f, m_Course.LaneCenterZ);
+            Vector3 pos = new Vector3(m_Course.StartX, Strider.Thigh * 2f * Mathf.Cos(Strider.StandHip * Mathf.Deg2Rad) + 0.03f, m_Course.LaneCenterZ);
             Quaternion rot = Quaternion.Euler(0f, m_Course.Direction > 0f ? 90f : -90f, 0f);   // 進行方向 (+x) を向く
             m_Strider = Strider.Create(pos, rot);
             UpdateHeading();
