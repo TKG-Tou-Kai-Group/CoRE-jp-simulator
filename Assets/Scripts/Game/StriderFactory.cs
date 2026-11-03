@@ -11,8 +11,9 @@ namespace CoreSim
     {
         public const float Thigh = 0.30f;      // 股関節から膝 [m]。15.3 の上限は 400 mm。0.22 だとハードル (30 cm) で後脚がつかえた
         public const float Calf = 0.30f;       // 膝から脚先 [m]。直立の高さは約 0.54 m、脚を畳めば脚先を 0.45 m 上げられる
-        public const float HipX = 0.15f;       // 胴体の中心から股関節まで (左右)。狭いと横に転ぶ
-        public const float HipZ = 0.25f;       // (前後)。長いほどピッチ方向に安定し、ハードルを越えるとき前後の脚が同時に引っ掛からない
+        public const float HipX = 0.15f;       // 胴体の中心から後脚の股関節まで (左右)。狭いと横に転ぶ
+        public const float FrontHipX = 0.21f;  // 前脚は一回り外側に付ける。脚が長いと振ったときに前後の脚が当たるので、左右にずらして干渉を避ける
+        public const float HipZ = 0.28f;       // (前後)。長いほどピッチ方向に安定し、ハードルを越えるとき前後の脚が同時に引っ掛からない
         public const float Splay = 10f;        // 脚を外へ開く角度 [deg] (股関節の外転は無いので固定)。接地幅を股関節の幅より広くする
         /// <summary>横の安定の補助: ロールを戻すトルク [N·m/rad] と減衰。脚にピッチしか無いので、無いと 2 本脚で接地した
         /// 瞬間に横へ倒れる (実機は股関節の外転で踏ん張る)。0 にすれば補助なし。</summary>
@@ -127,12 +128,15 @@ namespace CoreSim
             box.size = new Vector3(0.30f, 0.10f, HipZ * 2f + 0.08f);
             Visuals.Create("body", PrimitiveType.Cube, root.transform, Vector3.zero, Quaternion.identity, new Vector3(0.30f, 0.10f, HipZ * 2f + 0.08f), bodyMat);
             Visuals.Create("head", PrimitiveType.Cube, root.transform, new Vector3(0f, 0.03f, HipZ + 0.07f), Quaternion.identity, new Vector3(0.12f, 0.08f, 0.08f), footMat);
+            // 前脚の股関節を胴体の外側まで出す肩 (見た目)
+            Visuals.Create("shoulders", PrimitiveType.Cube, root.transform, new Vector3(0f, 0f, HipZ), Quaternion.identity, new Vector3(FrontHipX * 2f, 0.08f, 0.10f), bodyMat);
             var strider = root.AddComponent<Strider>();
             strider.Body = body;
 
             for (int i = 0; i < 4; i++)
             {
-                float sx = i % 2 == 0 ? -HipX : HipX;      // 偶数 = 左
+                float hx = i < 2 ? FrontHipX : HipX;       // 前脚は外側
+                float sx = i % 2 == 0 ? -hx : hx;          // 偶数 = 左
                 float sz = i < 2 ? HipZ : -HipZ;           // 0, 1 = 前
                 var hipGo = new GameObject($"hip_{i}");
                 hipGo.transform.SetParent(root.transform, false);
