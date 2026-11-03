@@ -692,7 +692,9 @@ namespace CoreSim
                     bool human = false;
                     foreach (RobotAgent r in m_Robots)
                     {
-                        if (TournamentController.SideOf(r.Team) == side && !(r.Source is BotCommandSource)) human = true;
+                        // CPU はアタッカー (BotCommandSource) もビルダー (BotBuilderSource) も IBotStatus。ビルダーを
+                        // 人と数えると、その同盟に総大将が付かず、弾切れの CPU にピットインが出なかった
+                        if (TournamentController.SideOf(r.Team) == side && !(r.Source is IBotStatus)) human = true;
                     }
                     if (!human) m_Commanders.Add(new BotCommander { Side = side, Tournament = Tournament });
                 }
