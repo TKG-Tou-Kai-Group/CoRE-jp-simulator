@@ -43,6 +43,7 @@ namespace CoreSim
             view.Row(content, size, () => s.PlayerIsRed ? "自分の同盟: 赤 (奇数番)" : "自分の同盟: 青 (偶数番)", () => s.PlayerIsRed = !s.PlayerIsRed);
             view.Row(content, size, () => $"弾倉: {s.Magazine} 枚 (同盟のディスク 400 枚から装填。ルールに無い値)",
                      () => s.Magazine = s.Magazine switch { 30 => 50, 50 => 80, 80 => 120, _ => 30 });
+            view.Row(content, size, () => GameSettings.FireText(s.FireInterval), () => s.FireInterval = GameSettings.NextFireInterval(s.FireInterval));
             view.Text(content, "変えられない値 (ルールブックの規定): ラウンド 7 分、VP 500 で終了、命中 -10HP、陣地 HP 200 (開始 3 分間は無効)、\n" +
                                "撃破 +10VP、陣地撃破 +100VP +100RP、RP 初期 100 (5 分で +100)、スキルの消費 RP と効果時間、射出 15 m/s、\n" +
                                "ピットイン 20 秒停止、反則 -50VP");

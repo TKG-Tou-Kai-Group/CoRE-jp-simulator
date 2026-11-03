@@ -64,6 +64,22 @@ namespace CoreSim
         public PlayerRole Role = PlayerRole.Head;   // 自分の機体
         public bool PlayerIsRed;            // false = 青同盟
         public int Magazine = 50;           // 弾倉の枚数。ルールには無い (機体設計次第)
+        public float FireInterval = Tuning.FireInterval;   // アタッカー全員の連射間隔 [s]。ゲームとして調整するための値
+
+        public static readonly float[] FireIntervals = { 0.6f, 0.4f, 0.3f, 0.2f, 0.15f };
+        public static float NextFireInterval(float current)
+        {
+            for (int i = 0; i < FireIntervals.Length; i++)
+            {
+                if (Mathf.Abs(FireIntervals[i] - current) < 0.01f) return FireIntervals[(i + 1) % FireIntervals.Length];
+            }
+            return FireIntervals[0];
+        }
+        public static string FireText(float interval)
+        {
+            string name = Mathf.Abs(interval - 0.6f) < 0.01f ? "実機相当" : interval >= 0.35f ? "やや速い" : interval >= 0.25f ? "速い" : interval >= 0.18f ? "とても速い" : "最速";
+            return $"連射: {name} ({interval:0.##} 秒に 1 発、全アタッカー共通)";
+        }
 
         public float LinearScale => Speed == SpeedPreset.Game ? Tuning.GameSpeedScale : 1f;
         /// <summary>互換用: 以前の「自分をヘッドアタッカーにする」。</summary>
@@ -92,6 +108,7 @@ namespace CoreSim
             PlayerPrefs.SetInt("builders", BuildersPerSide);
             PlayerPrefs.SetInt("red", PlayerIsRed ? 1 : 0);
             PlayerPrefs.SetInt("mag", Magazine);
+            PlayerPrefs.SetInt("fire", Mathf.RoundToInt(FireInterval * 1000f));
             PlayerPrefs.Save();
         }
 
@@ -116,6 +133,7 @@ namespace CoreSim
             s.Role = (PlayerRole)Mathf.Clamp(PlayerPrefs.GetInt("role", PlayerPrefs.GetInt("head", 1) != 0 ? 0 : 1), 0, 2);
             s.PlayerIsRed = PlayerPrefs.GetInt("red", 0) != 0;
             s.Magazine = Mathf.Clamp(PlayerPrefs.GetInt("mag", 50), 10, 200);
+            s.FireInterval = Mathf.Clamp(PlayerPrefs.GetInt("fire", 600) / 1000f, 0.1f, 2f);
             return s;
         }
     }

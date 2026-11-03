@@ -21,7 +21,7 @@ namespace CoreSim
         private string m_LastScanKey = "";
 
         private Text m_LobbyTitle, m_LobbyList, m_LobbyStatus;
-        private Button m_ModeButton, m_TimeButton, m_CpuButton, m_SpeedButton, m_StartButton, m_BestOfButton, m_BuildersButton;
+        private Button m_ModeButton, m_TimeButton, m_CpuButton, m_SpeedButton, m_FireButton, m_StartButton, m_BestOfButton, m_BuildersButton;
         private bool m_IsHost;
 
         public static NetworkMenuView Create(Transform parent, GameSettings settings, GameDirector director)
@@ -197,6 +197,11 @@ namespace CoreSim
                 m_Settings.Speed = m_Settings.Speed == SpeedPreset.Game ? SpeedPreset.Real : SpeedPreset.Game;
                 if (m_Director.Host != null) m_Director.Host.Speed = (byte)(m_Settings.Speed == SpeedPreset.Game ? 1 : 0);
             }, fontSize: 26);
+            m_FireButton = UiKit.Button(opts, "", size, () =>
+            {
+                m_Settings.FireInterval = GameSettings.NextFireInterval(m_Settings.FireInterval);
+                if (m_Director.Host != null) m_Director.Host.FireMs = (ushort)Mathf.RoundToInt(m_Settings.FireInterval * 1000f);
+            }, fontSize: 26);
             m_LobbyStatus = UiKit.Label(Row(opts, 70f), "Status", "", 24, new Color(0.85f, 0.9f, 1f), TextAnchor.MiddleLeft);
             m_StartButton = UiKit.Button(opts, "試合開始", new Vector2(800f, 80f), () => m_Director.StartMatch(), new Color(0.85f, 0.35f, 0.2f, 0.95f), 36);
             UiKit.Button(opts, "退出", new Vector2(800f, 56f), () => m_Director.LeaveNetwork(), null, 26);
@@ -214,6 +219,7 @@ namespace CoreSim
             m_TimeButton.interactable = isHost;
             m_CpuButton.interactable = isHost;
             m_SpeedButton.interactable = isHost;
+            m_FireButton.interactable = isHost;
             string kind = m_Settings.NetUseTcp ? "TCP" : "UDP";
             m_LobbyTitle.text = isHost ? $"ロビー (ホスト: {kind} ポート {m_Settings.NetPort})" : $"ロビー ({(m_Settings.LastHostAddress.Contains(":") ? m_Settings.LastHostAddress : m_Settings.LastHostAddress + ":" + m_Settings.NetPort)} {kind})";
         }
@@ -253,6 +259,7 @@ namespace CoreSim
             foreach (LobbySlot s in lobby.Slots) if (s.Kind == SlotKind.Cpu) cpu++;
             UiKit.SetButtonLabel(m_CpuButton, $"CPU を追加: {cpu} 台");
             UiKit.SetButtonLabel(m_SpeedButton, lobby.Speed == 1 ? "機体の速さ: ゲーム (実機の 2 倍)" : "機体の速さ: リアル (実機相当)");
+            UiKit.SetButtonLabel(m_FireButton, GameSettings.FireText(lobby.FireMs / 1000f));
             m_StartButton.interactable = m_IsHost && lobby.Slots.Count >= 2;
         }
     }

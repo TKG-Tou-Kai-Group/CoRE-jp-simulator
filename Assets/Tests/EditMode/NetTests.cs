@@ -113,7 +113,7 @@ namespace CoreSim.Tests
         [Test]
         public void LobbyAndInputRoundTrip()
         {
-            var lobby = new LobbyMessage { State = LobbyState.Playing, Mode = 1, MatchSeconds = 180, Speed = 0, BestOf = 3 };
+            var lobby = new LobbyMessage { State = LobbyState.Playing, Mode = 1, MatchSeconds = 180, Speed = 0, BestOf = 3, FireMs = 300 };
             lobby.Slots.Add(new LobbySlot { Slot = 0, Kind = SlotKind.Host, Name = "ホスト" });
             lobby.Slots.Add(new LobbySlot { Slot = 2, Kind = SlotKind.Cpu, Name = "CPU 3" });
             var w = new ByteWriter();
@@ -122,6 +122,7 @@ namespace CoreSim.Tests
             Assert.AreEqual(LobbyState.Playing, back.State);
             Assert.AreEqual(180, back.MatchSeconds);
             Assert.AreEqual(3, back.BestOf);
+            Assert.AreEqual(300, back.FireMs);
             Assert.AreEqual("ホスト", back.Slots[0].Name);
             Assert.AreEqual(SlotKind.Cpu, back.Slots[1].Kind);
 

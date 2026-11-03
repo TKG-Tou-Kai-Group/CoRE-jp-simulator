@@ -214,6 +214,7 @@ namespace CoreSim
                     Mode = (byte)(Settings.Rules == Ruleset.Tournament ? 2 : 0),
                     MatchSeconds = (ushort)Settings.MatchSeconds,
                     Speed = (byte)(Settings.Speed == SpeedPreset.Game ? 1 : 0),
+                    FireMs = (ushort)Mathf.RoundToInt(Settings.FireInterval * 1000f),
                     BestOf = (byte)Settings.BestOf,
                     CpuCount = 0,
                 };
@@ -540,6 +541,7 @@ namespace CoreSim
                     Unlimited = tournament,
                 };
                 Settings.Speed = m_Host.Speed == 1 ? SpeedPreset.Game : SpeedPreset.Real;
+                Settings.FireInterval = m_Host.FireMs / 1000f;
                 m_Host.State = LobbyState.Playing;
             }
             else if (tournament)
@@ -1012,6 +1014,7 @@ namespace CoreSim
                 MatchSeconds = lobby.MatchSeconds,
             };
             Settings.Speed = lobby.Speed == 1 ? SpeedPreset.Game : SpeedPreset.Real;
+            Settings.FireInterval = lobby.FireMs / 1000f;
             if (tournament)
             {
                 Tournament = new TournamentController { Field = ArenaBuilder.Field2027 };

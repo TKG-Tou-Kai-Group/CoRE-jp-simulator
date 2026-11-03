@@ -97,10 +97,10 @@ namespace CoreSim
             m_Summary.text = tournament
                 ? $"赤 {m_Settings.RobotsPerSide} 台 vs 青 {m_Settings.RobotsPerSide} 台 (ビルダー各 {m_Settings.EffectiveBuilders} 台)、{BestOfText(m_Settings.BestOf)}\n" +
                   $"自分: {(m_Settings.PlayerIsRed ? "赤" : "青")}同盟の{RoleName(m_Settings.Role)}、弾倉 {m_Settings.Magazine} 枚\n" +
-                  $"機体の速さ: {(m_Settings.Speed == SpeedPreset.Game ? "ゲーム" : "リアル")}"
+                  $"機体の速さ: {(m_Settings.Speed == SpeedPreset.Game ? "ゲーム" : "リアル")}、連射 {m_Settings.FireInterval:0.##} 秒"
                 : $"{(m_Settings.Mode == GameMode.SoloVsCpu ? $"CPU {m_Settings.CpuCount} 台、" : "")}" +
                   $"{(m_Settings.Mode == GameMode.Practice ? "時間無制限" : $"試合時間 {m_Settings.MatchSeconds} 秒")}\n" +
-                  $"機体の速さ: {(m_Settings.Speed == SpeedPreset.Game ? "ゲーム" : "リアル")}";
+                  $"機体の速さ: {(m_Settings.Speed == SpeedPreset.Game ? "ゲーム" : "リアル")}、連射 {m_Settings.FireInterval:0.##} 秒";
         }
 
         public static string RoleName(PlayerRole role) => role switch { PlayerRole.Builder => "ビルダー", PlayerRole.Attacker => "アタッカー", _ => "ヘッドアタッカー" };

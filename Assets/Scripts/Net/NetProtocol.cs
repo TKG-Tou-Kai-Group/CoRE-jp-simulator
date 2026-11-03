@@ -68,6 +68,7 @@ namespace CoreSim.Net
         public byte Speed;           // 0 リアル / 1 ゲーム
         public byte BestOf = 1;      // 大会ルール: 1 / 3 / 5
         public byte Builders;        // 各同盟のビルダーの数 (同盟の番号の大きい側から割り当てる)
+        public ushort FireMs = 600;  // アタッカーの連射間隔 [ms] (ホストの設定を全員に見せる)
         public List<LobbySlot> Slots = new List<LobbySlot>();
     }
 
@@ -291,7 +292,7 @@ namespace CoreSim.Net
         public static void WriteLobby(ByteWriter w, LobbyMessage m)
         {
             w.Reset(); w.Byte((byte)MsgType.Lobby);
-            w.Byte((byte)m.State); w.Byte(m.Mode); w.UShort(m.MatchSeconds); w.Byte(m.Speed); w.Byte(m.BestOf); w.Byte(m.Builders);
+            w.Byte((byte)m.State); w.Byte(m.Mode); w.UShort(m.MatchSeconds); w.Byte(m.Speed); w.Byte(m.BestOf); w.Byte(m.Builders); w.UShort(m.FireMs);
             w.Byte((byte)Math.Min(m.Slots.Count, 255));
             foreach (LobbySlot s in m.Slots)
             {
@@ -405,6 +406,7 @@ namespace CoreSim.Net
                 Speed = r.Byte(),
                 BestOf = r.Byte(),
                 Builders = r.Byte(),
+                FireMs = r.UShort(),
             };
             int n = r.Byte();
             for (int i = 0; i < n; i++)

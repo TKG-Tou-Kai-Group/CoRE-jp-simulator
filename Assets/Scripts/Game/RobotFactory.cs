@@ -226,6 +226,7 @@ namespace CoreSim
             if (!builder)
             {
                 shooter = root.AddComponent<Shooter>();
+                shooter.Interval = settings.FireInterval;
                 shooter.Muzzle = muzzle;
                 shooter.Rollers = rollers.ToArray();
             }
