@@ -552,7 +552,7 @@ namespace CoreSim
         {
             ClearMatch();
             LeaveMenuForMatch();
-            if (Role == NetRole.None && Settings.Rules != Ruleset.Tournament && Settings.Mode == GameMode.Strider)
+            if (Role == NetRole.None && Settings.Rules == Ruleset.Strider)
             {
                 // ストライダーチャレンジは試合の仕組みを使わない単独モード
                 m_Strider = StriderChallenge.Create(this, Settings, m_Canvas.transform);

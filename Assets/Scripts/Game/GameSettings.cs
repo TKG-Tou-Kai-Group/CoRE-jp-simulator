@@ -13,16 +13,16 @@ namespace CoreSim
         LocalVersus,
         /// <summary>時間無制限の練習。撃ち返してこない的が 1 台いる。</summary>
         Practice,
-        /// <summary>ストライダーチャレンジ。4 本脚のロボットを QWOP 方式で歩かせてストライダーエリアを踏破するタイムアタック。</summary>
-        Strider,
     }
 
     public enum Ruleset
     {
         /// <summary>HP 200 の撃ち合い (ROS 2 版と同じ簡易ルール)。</summary>
         Casual,
-        /// <summary>CoRE-1 ルールブック V27.1.3 (2027) 準拠。アタッカーのみ。</summary>
+        /// <summary>CoRE-1 ルールブック V27.1.3 (2027) 準拠。アタッカー・ビルダー・オートアタッカー。</summary>
         Tournament,
+        /// <summary>ストライダーチャレンジ。4 本脚のロボットを QWOP 方式で歩かせてストライダーエリアを踏破するタイムアタック (単独)。</summary>
+        Strider,
     }
 
     /// <summary>大会ルールで自分が操縦する機体。</summary>
@@ -148,7 +148,7 @@ namespace CoreSim
         public static GameSettings Load()
         {
             var s = new GameSettings();
-            s.Mode = (GameMode)Mathf.Clamp(PlayerPrefs.GetInt("mode", (int)s.Mode), 0, (int)GameMode.Strider);
+            s.Mode = (GameMode)Mathf.Clamp(PlayerPrefs.GetInt("mode", (int)s.Mode), 0, (int)GameMode.Practice);
             s.CpuCount = Mathf.Clamp(PlayerPrefs.GetInt("cpu", s.CpuCount), 1, 3);
             s.MatchSeconds = PlayerPrefs.GetInt("sec", s.MatchSeconds);
             s.Speed = (SpeedPreset)PlayerPrefs.GetInt("speed", (int)s.Speed);
@@ -159,7 +159,7 @@ namespace CoreSim
             s.NetUseTcp = PlayerPrefs.GetInt("tcp", 0) != 0;
             s.LastHostAddress = PlayerPrefs.GetString("host", "");
             s.NetPassword = PlayerPrefs.GetString("pass", "");
-            s.Rules = (Ruleset)PlayerPrefs.GetInt("rules", 0);
+            s.Rules = (Ruleset)Mathf.Clamp(PlayerPrefs.GetInt("rules", 0), 0, (int)Ruleset.Strider);
             s.RobotsPerSide = Mathf.Clamp(PlayerPrefs.GetInt("perside", 3), 1, 4);
             s.BuildersPerSide = Mathf.Clamp(PlayerPrefs.GetInt("builders", 1), 0, 2);
             s.AutosPerSide = Mathf.Clamp(PlayerPrefs.GetInt("autos", 0), 0, 1);
