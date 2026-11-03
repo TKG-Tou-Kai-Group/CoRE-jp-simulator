@@ -15,6 +15,7 @@ namespace CoreSim
         private readonly List<Text> m_SkillLabels = new List<Text>();
         private readonly List<Image> m_SkillImages = new List<Image>();
         private Button m_AutoStartButton, m_AutoStopButton;
+        private RectTransform m_AutoPanel;
         private Side m_Side;
         private System.Action<SkillKind> m_OnSkill;
 
@@ -84,13 +85,21 @@ namespace CoreSim
                 hud.m_SkillImages.Add(b.GetComponent<Image>());
             }
 
-            // オートアタッカーの始動 / 停止 (同盟にいるときだけ出す)
-            hud.m_AutoStartButton = UiKit.Button(skills, "0  オート始動", new Vector2(130f, 80f), () => onSkill?.Invoke((SkillKind)TournamentConfig.AutoStartCommand),
+            // オートアタッカーの始動 / 停止 (同盟にいるときだけ出す)。スキルの列は幅いっぱいなので、その上の右側に別の段を置く
+            hud.m_AutoPanel = UiKit.Rect(root, "AutoPanel", new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(560f, 190f), new Vector2(340f, 70f));
+            UiKit.Image(hud.m_AutoPanel, "bg", new Color(0f, 0f, 0f, 0.45f), Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+            var autoLayout = hud.m_AutoPanel.gameObject.AddComponent<HorizontalLayoutGroup>();
+            autoLayout.padding = new RectOffset(8, 8, 6, 6);
+            autoLayout.spacing = 8f;
+            autoLayout.childControlWidth = false;
+            autoLayout.childControlHeight = false;
+            autoLayout.childForceExpandWidth = false;
+            autoLayout.childAlignment = TextAnchor.MiddleCenter;
+            hud.m_AutoStartButton = UiKit.Button(hud.m_AutoPanel, "0  オート始動", new Vector2(156f, 58f), () => onSkill?.Invoke((SkillKind)TournamentConfig.AutoStartCommand),
                                                  new Color(0.15f, 0.45f, 0.35f, 0.95f), 19);
-            hud.m_AutoStopButton = UiKit.Button(skills, "-  オート停止", new Vector2(130f, 80f), () => onSkill?.Invoke((SkillKind)TournamentConfig.AutoStopCommand),
+            hud.m_AutoStopButton = UiKit.Button(hud.m_AutoPanel, "-  オート停止", new Vector2(156f, 58f), () => onSkill?.Invoke((SkillKind)TournamentConfig.AutoStopCommand),
                                                 new Color(0.45f, 0.2f, 0.2f, 0.95f), 19);
-            hud.m_AutoStartButton.gameObject.SetActive(false);
-            hud.m_AutoStopButton.gameObject.SetActive(false);
+            hud.m_AutoPanel.gameObject.SetActive(false);
 
             RectTransform hint = UiKit.Rect(root, "SkillHint", new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 122f), new Vector2(1460f, 30f));
             UiKit.Label(hint, "Text", "スキル: キー 1〜9 / パッド 十字← → で選んで X(□) で発動 / 画面のボタン   オートアタッカー: 0 で始動、- で停止", 18, new Color(0.85f, 0.85f, 0.85f));
@@ -190,8 +199,7 @@ namespace CoreSim
                 autoStarted = kv.Value.AutoStarted;
                 autoStopped = kv.Value.AutoStopped;
             }
-            m_AutoStartButton.gameObject.SetActive(hasAuto);
-            m_AutoStopButton.gameObject.SetActive(hasAuto);
+            m_AutoPanel.gameObject.SetActive(hasAuto);
             m_AutoStartButton.interactable = canCommand && hasAuto && !autoStarted && !autoStopped && !view.Finished;
             m_AutoStopButton.interactable = canCommand && hasAuto && autoStarted && !autoStopped && !view.Finished;
 
