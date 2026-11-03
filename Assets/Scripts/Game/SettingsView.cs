@@ -30,17 +30,17 @@ namespace CoreSim
                      () => s.Speed = s.Speed == SpeedPreset.Game ? SpeedPreset.Real : SpeedPreset.Game);
             view.Row(content, size, () => s.Sound ? "効果音: ON" : "効果音: OFF", () => s.Sound = !s.Sound);
             view.Row(content, size, () => s.ShowTouchControls ? "タッチ操作パッド: 表示 (タブレット向け)" : "タッチ操作パッド: 非表示", () => s.ShowTouchControls = !s.ShowTouchControls);
+            view.Row(content, size, () => "自分のプログラムを編集 ▶ (オートアタッカー・オート対戦で自分の機体が使う)", () => onEditProgram?.Invoke());
+            view.Row(content, size, () => $"CPU のプログラム (CPU のアタッカー全部とオート対戦の相手): {s.CpuProgramLabel}", () => s.CpuProgramSlot = s.CpuProgramSlot + 1 >= GameSettings.ProgramSlotCount ? -1 : s.CpuProgramSlot + 1);
 
             view.Section(content, "かんたんルール (HP 200、自動復活なし)");
             view.Row(content, size, () => $"ひとりで対戦のときの CPU の数: {s.CpuCount} 台", () => s.CpuCount = s.CpuCount % 3 + 1);
-            view.Row(content, size, () => $"CPU のプログラム (CPU のアタッカー全部とオート対戦の相手): {s.CpuProgramLabel}", () => s.CpuProgramSlot = s.CpuProgramSlot + 1 >= GameSettings.ProgramSlotCount ? -1 : s.CpuProgramSlot + 1);
             view.Row(content, size, () => $"試合時間: {s.MatchSeconds} 秒", () => s.MatchSeconds = s.MatchSeconds switch { 60 => 120, 120 => 180, _ => 60 });
 
             view.Section(content, "大会ルール (CoRE-1 ルールブック V27.1.3、アタッカー・ビルダー・オートアタッカー)");
             view.Row(content, size, () => $"各同盟の機体: {s.RobotsPerSide} 台 (うちビルダー {s.EffectiveBuilders} 台。自分以外は CPU)", () => s.RobotsPerSide = s.RobotsPerSide % 4 + 1);
             view.Row(content, size, () => $"各同盟のビルダー: {s.EffectiveBuilders} 台 (アタッカーは 1 台以上残す)", () => s.BuildersPerSide = (s.BuildersPerSide + 1) % 3);
             view.Row(content, size, () => $"各同盟のオートアタッカー: {s.AutosPerSide} 台 (上の台数とは別枠。1 台まで。HP 200、ミニディスク 200 枚、完全自律)", () => s.AutosPerSide = (s.AutosPerSide + 1) % 2);
-            view.Row(content, size, () => "オートアタッカーのプログラムを編集 ▶ (自分の機体と、自分がホストのときの CPU 以外)", () => onEditProgram?.Invoke());
             view.Row(content, size, () => $"試合: {MenuView.BestOfText(s.BestOf)}", () => s.BestOf = s.BestOf switch { 1 => 3, 3 => 5, _ => 1 });
             view.Row(content, size, () => MenuView.RoleText(s.Role), () => s.Role = (PlayerRole)(((int)s.Role + 1) % 4));
             view.Row(content, size, () => s.PlayerIsRed ? "自分の同盟: 赤 (奇数番)" : "自分の同盟: 青 (偶数番)", () => s.PlayerIsRed = !s.PlayerIsRed);
