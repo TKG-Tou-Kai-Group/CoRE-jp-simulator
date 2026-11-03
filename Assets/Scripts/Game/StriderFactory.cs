@@ -11,8 +11,8 @@ namespace CoreSim
     {
         public const float Thigh = 0.30f;      // 股関節から膝 [m]。15.3 の上限は 400 mm。0.22 だとハードル (30 cm) で後脚がつかえた
         public const float Calf = 0.30f;       // 膝から脚先 [m]。直立の高さは約 0.54 m、脚を畳めば脚先を 0.45 m 上げられる
-        public const float HipX = 0.15f;       // 胴体の中心から後脚の股関節まで (左右)。狭いと横に転ぶ
-        public const float FrontHipX = 0.21f;  // 前脚は一回り外側に付ける。脚が長いと振ったときに前後の脚が当たるので、左右にずらして干渉を避ける
+        public const float HipX = 0.11f;       // 胴体の中心から後脚の股関節まで (左右)。前脚と左右で 12 cm ずらして、振ったときに前後の脚が当たらないようにする
+        public const float FrontHipX = 0.23f;  // 前脚は外側に付ける (脚の太さ 5 cm + 開きぶんを見て、後脚との差は 12 cm)
         public const float HipZ = 0.28f;       // (前後)。長いほどピッチ方向に安定し、ハードルを越えるとき前後の脚が同時に引っ掛からない
         public const float Splay = 10f;        // 脚を外へ開く角度 [deg] (股関節の外転は無いので固定)。接地幅を股関節の幅より広くする
         /// <summary>横の安定の補助: ロールを戻すトルク [N·m/rad] と減衰。脚にピッチしか無いので、無いと 2 本脚で接地した
@@ -141,7 +141,9 @@ namespace CoreSim
                 var hipGo = new GameObject($"hip_{i}");
                 hipGo.transform.SetParent(root.transform, false);
                 hipGo.transform.localPosition = new Vector3(sx, 0f, sz);
-                hipGo.transform.localRotation = Quaternion.Euler(0f, 0f, sx < 0f ? Splay : -Splay);   // 左脚は左へ、右脚は右へ開く
+                // 左脚は左へ、右脚は右へ開く。後脚は開かない (開くと前脚の振る面に入って当たる)
+                float splay = i < 2 ? Splay : 0f;
+                hipGo.transform.localRotation = Quaternion.Euler(0f, 0f, sx < 0f ? splay : -splay);
                 hipGo.layer = Tuning.LayerRobot;
                 var hip = hipGo.AddComponent<ArticulationBody>();
                 hip.mass = 0.7f;
