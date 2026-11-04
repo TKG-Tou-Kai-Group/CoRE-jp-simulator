@@ -62,26 +62,28 @@ namespace CoreSim.Editor
             },
             new Shot
             {
+                // 中央の共通コンテナ置き場 (x ±1.15, z ±0.8) と重ならないよう、北側の空き地 (z ≈ 3.5) で撮る。カメラは北の壁の外から南向き
                 Name = "mode_shoot", Width = 840, Height = 480, Fov = 45f,
-                Camera = new Vector3(0.8f, 3.4f, -6.2f), LookAt = new Vector3(0f, 0.35f, 0.2f),
+                Camera = new Vector3(-0.4f, 3.4f, 9.9f), LookAt = new Vector3(-1f, 0.35f, 3.4f),
                 Bots = new[]
                 {
-                    new Bot(RobotKind.Attacker, true, new Vector3(-3.2f, 0f, 0.3f), 85f),
-                    new Bot(RobotKind.Attacker, false, new Vector3(3.2f, 0f, -0.3f), -95f),
+                    new Bot(RobotKind.Attacker, true, new Vector3(-4.2f, 0f, 3.7f), 85f),
+                    new Bot(RobotKind.Attacker, false, new Vector3(2.2f, 0f, 3.1f), -95f),
                 },
-                Discs = new[] { new Vector3(-1.8f, 0.5f, 0.2f), new Vector3(-0.2f, 0.55f, 0.1f), new Vector3(1.4f, 0.5f, -0.05f) },
+                Discs = new[] { new Vector3(-2.8f, 0.5f, 3.6f), new Vector3(-1.2f, 0.55f, 3.45f), new Vector3(0.4f, 0.5f, 3.3f) },
                 DiscDir = new Vector3(1f, 0f, -0.08f),
             },
             new Shot
             {
+                // 横並び: ヘッド (中央)、ビルダー (画面の右)、アタッカー (画面の左)。カメラは北から南向きなので、画面の右 = -x。
+                // 左右は少し外を向く。中央の構造物を避けて北側の空き地で撮る
                 Name = "mode_tournament", Width = 840, Height = 480, Fov = 40f,
-                Camera = new Vector3(0f, 1.5f, -5.6f), LookAt = new Vector3(0f, 0.45f, 0f),
-                // 横並び: ヘッド (中央)、ビルダー (右)、アタッカー (左)。左右は少し外を向く
+                Camera = new Vector3(-1f, 1.5f, 9.1f), LookAt = new Vector3(-1f, 0.45f, 3.5f),
                 Bots = new[]
                 {
-                    new Bot(RobotKind.Attacker, true, new Vector3(0f, 0f, 0f), 180f, head: true),
-                    new Bot(RobotKind.Builder, true, new Vector3(1.7f, 0f, 0.2f), 160f),
-                    new Bot(RobotKind.Attacker, true, new Vector3(-1.7f, 0f, 0.2f), 200f),
+                    new Bot(RobotKind.Attacker, true, new Vector3(-1f, 0f, 3.5f), 0f, head: true),
+                    new Bot(RobotKind.Builder, true, new Vector3(-2.7f, 0f, 3.7f), -20f),
+                    new Bot(RobotKind.Attacker, true, new Vector3(0.7f, 0f, 3.7f), 20f),
                 },
             },
             new Shot
