@@ -166,7 +166,7 @@ namespace CoreSim
         {
             if (!RoundedCorners || img == null) return;
             img.sprite = RoundedSprite;
-            img.type = Image.Type.Sliced;
+            img.type = UnityEngine.UI.Image.Type.Sliced;   // クラス内では Image が自前のメソッド名と衝突する
             img.pixelsPerUnitMultiplier = 1f;
         }
 
