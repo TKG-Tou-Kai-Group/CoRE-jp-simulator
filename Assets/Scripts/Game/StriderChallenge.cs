@@ -31,7 +31,10 @@ namespace CoreSim
         private bool m_Started, m_Finished, m_Fallen, m_OutOfLane;
         private float m_MessageUntil;
         private string m_Message = "";
-        private Text m_Status, m_Zones, m_Center, m_Hint;
+        private Text m_Status, m_Zones, m_Center, m_Hint, m_Guide;
+        private int m_GuideStep;          // 手ほどき: 0 腿、1 膝、2 1 歩、3 段差、4 終わり
+        private float m_GuideStartX;
+        private bool m_GuideHipMoved, m_GuideKneeMoved;
         private RectTransform m_Root;
         private bool m_EscHeld, m_ResetHeld;
         private readonly List<float> m_FootX = new List<float>(4);
@@ -67,6 +70,13 @@ namespace CoreSim
             m_Zones = UiKit.Label(top, "Zones", "", 18, new Color(0.9f, 0.95f, 1f), TextAnchor.LowerLeft);
             m_Zones.rectTransform.offsetMin = new Vector2(16f, 10f);
             m_Zones.rectTransform.offsetMax = new Vector2(-16f, 0f);
+            // 手ほどき (最初の 4 手順。達成したら次へ。ガイド OFF なら出ない)
+            RectTransform guide = UiKit.Rect(m_Root, "Guide", new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(480f, -160f), new Vector2(920f, 60f));
+            UiKit.Image(guide, "bg", new Color(0.05f, 0.1f, 0.2f, 0.75f), Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+            m_Guide = UiKit.Label(guide, "Text", "", 18, new Color(1f, 0.92f, 0.6f), TextAnchor.MiddleLeft);
+            m_Guide.rectTransform.offsetMin = new Vector2(16f, 0f);
+            m_Guide.rectTransform.offsetMax = new Vector2(-16f, 0f);
+            m_Guide.horizontalOverflow = HorizontalWrapMode.Wrap;
             RectTransform center = UiKit.Rect(m_Root, "Center", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, 160f), new Vector2(1200f, 80f));
             m_Center = UiKit.Label(center, "Text", "", 32, new Color(1f, 0.85f, 0.4f));
             RectTransform hint = UiKit.Rect(m_Root, "Hint", new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 60f), new Vector2(1600f, 80f));
@@ -133,6 +143,9 @@ namespace CoreSim
         {
             Respawn();
             m_Course.Reset();
+            m_GuideStep = PlayerPrefs.GetInt("tut_strider", 0) != 0 ? 4 : 0;
+            m_GuideStartX = m_Course.StartX;
+            m_GuideHipMoved = m_GuideKneeMoved = false;
             m_Time = 0f;
             m_Started = false;
             m_Finished = false;
@@ -271,6 +284,43 @@ namespace CoreSim
             }
             m_Zones.text = sb.ToString();
             m_Center.text = Time.time < m_MessageUntil ? m_Message : "";
+            UpdateGuide();
+        }
+
+        /// <summary>手ほどき: 腿 → 膝 → 1 歩 → 段差。達成はゲーム内の状態で判定する。</summary>
+        private void UpdateGuide()
+        {
+            if (m_Guide == null) return;
+            bool show = m_Settings == null || m_Settings.ShowGuide;
+            if (!show || m_GuideStep >= 4 || m_Strider == null) { m_Guide.text = ""; return; }
+            if (Mathf.Abs(m_HipA) > 25f) m_GuideHipMoved = true;
+            if (Mathf.Abs(m_KneeA) > 25f) m_GuideKneeMoved = true;
+            float advanced = (m_Strider.Body.transform.position.x - m_GuideStartX) * m_Course.Direction;
+            switch (m_GuideStep)
+            {
+                case 0:
+                    m_Guide.text = "手ほどき 1 / 4:  Q を押し続けて腿を前に振り、W で戻す (対角の 2 本が逆に動く)";
+                    if (m_GuideHipMoved) Next();
+                    break;
+                case 1:
+                    m_Guide.text = "手ほどき 2 / 4:  O で膝を曲げ、P で伸ばす (曲げた脚は床から浮く)";
+                    if (m_GuideKneeMoved) Next();
+                    break;
+                case 2:
+                    m_Guide.text = "手ほどき 3 / 4:  Q → P → W → O の順に押して 1 歩 (浮いた脚を前へ出して着地、を繰り返す)。1 m 進むと次へ";
+                    if (advanced > 1f) Next();
+                    break;
+                case 3:
+                    m_Guide.text = "手ほどき 4 / 4:  その調子で平地ゾーンを越え、段差ゾーン (10 cm の段) を越える。転んだら R";
+                    if (m_Course.IsCleared(StriderZone.Step)) { Next(); PlayerPrefs.SetInt("tut_strider", 1); Say("手ほどき 完了! あとはゴールまで", 3f); }
+                    break;
+            }
+        }
+
+        private void Next()
+        {
+            m_GuideStep++;
+            GameDirector.Instance?.Audio.PlaySkill();
         }
 
         private static string FormatTime(float t) => $"{(int)(t / 60f)}:{t % 60f:00.0}";
