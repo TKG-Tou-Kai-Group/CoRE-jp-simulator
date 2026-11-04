@@ -47,7 +47,8 @@ namespace CoreSim.Editor
             new Shot
             {
                 Name = "intro_field", Width = 1520, Height = 860, Fov = 52f,
-                Camera = new Vector3(-17f, 12f, -15f), LookAt = new Vector3(0.5f, 0f, 0.5f),
+                // 注視点をフィールドの中心 (原点) にすると、フィールドの中心が画像の中心に来る
+                Camera = new Vector3(-15f, 12.5f, -16f), LookAt = new Vector3(0f, 0f, 0f),
                 Bots = new[]
                 {
                     new Bot(RobotKind.Attacker, true, new Vector3(-5f, 0f, -1.5f), 70f, head: true),
