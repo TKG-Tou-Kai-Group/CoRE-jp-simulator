@@ -57,6 +57,8 @@ namespace CoreSim
         public bool ShowTouchControls = Application.isMobilePlatform;
         public bool Sound = true;
         public string PlayerName = "Player";
+        public bool SeenIntro;              // 「はじめに」を見た (初回だけ自動で出す)
+        public bool ShowGuide = true;       // プレイ中のガイド (今の目標、試合前の 1 枚)。H / パッドの Select でいつでも切り替え
         public int NetPort = 7777;
         public bool NetUseTcp;              // false = UDP (既定)、true = TCP
         public string LastHostAddress = "";
@@ -124,6 +126,8 @@ namespace CoreSim
             PlayerPrefs.SetInt("speed", (int)Speed);
             PlayerPrefs.SetInt("touch", ShowTouchControls ? 1 : 0);
             PlayerPrefs.SetInt("sound", Sound ? 1 : 0);
+            PlayerPrefs.SetInt("intro", SeenIntro ? 1 : 0);
+            PlayerPrefs.SetInt("guide", ShowGuide ? 1 : 0);
             PlayerPrefs.SetString("name", PlayerName);
             PlayerPrefs.SetInt("port", NetPort);
             PlayerPrefs.SetInt("tcp", NetUseTcp ? 1 : 0);
@@ -154,6 +158,8 @@ namespace CoreSim
             s.Speed = (SpeedPreset)PlayerPrefs.GetInt("speed", (int)s.Speed);
             s.ShowTouchControls = PlayerPrefs.GetInt("touch", s.ShowTouchControls ? 1 : 0) != 0;
             s.Sound = PlayerPrefs.GetInt("sound", 1) != 0;
+            s.SeenIntro = PlayerPrefs.GetInt("intro", 0) != 0;
+            s.ShowGuide = PlayerPrefs.GetInt("guide", 1) != 0;
             s.PlayerName = PlayerPrefs.GetString("name", s.PlayerName);
             s.NetPort = Mathf.Clamp(PlayerPrefs.GetInt("port", s.NetPort), 1024, 65535);
             s.NetUseTcp = PlayerPrefs.GetInt("tcp", 0) != 0;

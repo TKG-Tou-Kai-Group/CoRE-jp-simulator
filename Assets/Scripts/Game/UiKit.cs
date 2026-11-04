@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 namespace CoreSim
@@ -235,6 +236,12 @@ namespace CoreSim
             scroll.movementType = ScrollRect.MovementType.Clamped;
             scroll.scrollSensitivity = 40f;
             return content;
+        }
+
+        /// <summary>ゲームパッドで選べるように、最初に選ばれているボタンを決める。</summary>
+        public static void Select(Button button)
+        {
+            if (button != null && EventSystem.current != null) EventSystem.current.SetSelectedGameObject(button.gameObject);
         }
 
         public static void SetButtonLabel(Button button, string text)

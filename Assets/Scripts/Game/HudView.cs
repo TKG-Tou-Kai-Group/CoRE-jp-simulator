@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using CoreSim.Net;
 using CoreSim.Rules;
 using Side = CoreSim.Rules.Side;
 using SkillKind = CoreSim.Rules.SkillKind;
@@ -36,6 +37,11 @@ namespace CoreSim
         private Text m_OwnStatus;
         private Text m_BuilderHint;   // かんたんルールのビルダーの案内 (大会ルールでは TournamentHud が出す)
         private Text m_BotDebug;      // F9: CPU の判断の中身
+        private Text m_Objective;     // 今の目標 (1 行)
+        private GameSettings m_Settings;
+        private static int s_GuideToggleFrame = -1;
+        private float m_GuideNoticeUntil;
+        private static bool s_SelectHeld;
         /// <summary>F9 で切り替える CPU のデバッグ表示 (全 HUD 共通)。</summary>
         public static bool ShowBotDebug;
         private static int s_ToggleFrame = -1;
@@ -57,6 +63,7 @@ namespace CoreSim
                                              new Vector2(viewport.xMin, viewport.yMin), new Vector2(viewport.xMax, viewport.yMax),
                                              Vector2.zero, Vector2.zero);
             var hud = root.gameObject.AddComponent<HudView>();
+            hud.m_Settings = settings;
 
             // 上中央: 残り時間
             RectTransform top = UiKit.Rect(root, "Top", new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -70f), new Vector2(520f, 140f));
@@ -75,6 +82,11 @@ namespace CoreSim
             // 下中央: ビルダーの案内 (かんたんルール)
             RectTransform hint = UiKit.Rect(root, "BuilderHint", new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 200f), new Vector2(1200f, 50f));
             hud.m_BuilderHint = UiKit.Label(hint, "Text", "", 30, new Color(1f, 0.85f, 0.4f));
+
+            // 上中央の下: 今の目標 (1 行。状況で変わる)
+            RectTransform obj = UiKit.Rect(root, "Objective", new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -192f), new Vector2(1100f, 40f));
+            UiKit.Image(obj, "bg", new Color(0f, 0f, 0f, 0.4f), Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+            hud.m_Objective = UiKit.Label(obj, "Text", "", 22, new Color(1f, 0.92f, 0.6f));
 
             // 左中段: CPU のデバッグ表示 (F9)
             RectTransform dbg = UiKit.Rect(root, "BotDebug", new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(20f, 0f), new Vector2(900f, 400f));
@@ -167,6 +179,37 @@ namespace CoreSim
             }
         }
 
+        /// <summary>今の目標。役割と状況から 1 行で。初めての人が「何をすれば得点か」を見失わないため。</summary>
+        private string ObjectiveText(GameDirector director)
+        {
+            if (m_Self == null) return "";
+            if (m_Self.IsKnockedOut) return "撃破されました。復活を待つ";
+            if (m_Self.Frozen) return "補給中 (完全停止)";
+            TournamentController tc = director.Tournament;
+            if (tc == null)
+            {
+                return m_Self.IsBuilder ? "目標: コンテナやブロックを運ぶ (かんたんルールでは得点なし)"
+                     : m_Self.IsAuto ? "目標: プログラムが自動で戦う。見守る"
+                     : "目標: 相手ロボットの装甲板 (4 枚) にディスクを当てる。横や後ろが当てやすい";
+            }
+            TournamentView v = tc.View;
+            RobotExtra me = v.Robots.TryGetValue(m_Self.Index, out RobotExtra x) ? x : default;
+            if (m_Self.IsBuilder)
+            {
+                AllianceState mine = v.Of(TournamentController.SideOf(m_Self.Team));
+                if ((mine.Sites & 1) == 0) return "目標: コンテナを自同盟のスポットへ (+10VP)。ブロックをビルドサイト 1 に 2 個積むと自分の防御が 2 倍";
+                return "目標: コンテナをスポットへ (1 段に 4 個で +50VP)。サイト 3・4 を取ると置き場 B・C も使える";
+            }
+            if (m_Self.IsAuto) return me.AutoStarted ? "目標: プログラムが自動で戦っている。スキル (1〜9) で支援" : "まもなく自動で始動";
+            if (me.Magazine == 0) return me.PitInGranted ? "残弾なし: 自同盟の補給エリアへ入る (20 秒停止で装填)" : "残弾なし: 1 キーでピットインを発動して補給エリアへ";
+            bool baseOpen = v.BaseAttackActive(tc.Config);
+            Side enemy = TournamentRound.Opposite(TournamentController.SideOf(m_Self.Team));
+            if (baseOpen && !v.Of(enemy).BaseDestroyed) return "目標: 相手ロボットを撃つ (+10VP)。相手陣地の低い板も撃てる (撃破で +100VP)";
+            float until = tc.Config.BaseImmuneSeconds - v.Time;
+            return until > 0f ? $"目標: 相手ロボットの装甲板を撃つ (+10VP)。{TournamentController.FormatTime(until)} 後から相手陣地も撃てる"
+                              : "目標: 相手ロボットの装甲板を撃つ (+10VP)";
+        }
+
         private static string RowName(RobotAgent agent) => (agent.IsHeadAttacker ? "★ " : agent.IsBuilder ? "[B] " : agent.IsAuto ? "[A] " : "") + agent.DisplayName;
 
         public void Refresh(GameDirector director)
@@ -182,6 +225,24 @@ namespace CoreSim
                 m_BotDebug.text = ShowBotDebug ? BotDebugText(director) : "";
             }
             BotDebugLines.Refresh(director.Robots, ShowBotDebug);
+            // ガイドの ON / OFF (H / パッドの Select)。経験者は消して遊べる
+            bool selectNow = Gamepad.current != null && Gamepad.current.selectButton.isPressed;
+            bool toggle = (Keyboard.current != null && Keyboard.current.hKey.wasPressedThisFrame) || (selectNow && !s_SelectHeld);
+            s_SelectHeld = selectNow;
+            if (toggle && m_Settings != null && s_GuideToggleFrame != Time.frameCount)
+            {
+                s_GuideToggleFrame = Time.frameCount;
+                m_Settings.ShowGuide = !m_Settings.ShowGuide;
+                m_Settings.Save();
+                m_GuideNoticeUntil = Time.time + 2f;
+            }
+            bool guide = m_Settings == null || m_Settings.ShowGuide;
+            if (m_Objective != null)
+            {
+                m_Objective.transform.parent.gameObject.SetActive(guide || Time.time < m_GuideNoticeUntil);
+                m_Objective.text = Time.time < m_GuideNoticeUntil ? (guide ? "ガイド ON (H / Select で OFF)" : "ガイド OFF (H / Select で ON)")
+                                 : match.Phase == MatchPhase.Playing ? ObjectiveText(director) : "";
+            }
             if (Tournament != null && director.Tournament != null)
             {
                 var src = m_Self != null && director.Tournament != null ? director.PlayerInputFor(m_Self) : null;

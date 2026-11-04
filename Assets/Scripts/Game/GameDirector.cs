@@ -95,6 +95,7 @@ namespace CoreSim
 
             m_Arena = ArenaBuilder.Build(lowDetail: Application.isMobilePlatform);
             ShowMenu();
+            if (!Settings.SeenIntro) OpenIntro();   // 初めての人には「はじめに」を先に見せる
         }
 
         private void OnDestroy()
@@ -119,7 +120,70 @@ namespace CoreSim
             ArenaBuilder.Field2027?.Props.SetRemote(false);
             DestroyMenus();
             EnsureMenuCamera();
-            m_Menu = MenuView.Create(m_Canvas.transform, Settings, StartMatch, OpenNetworkMenu, OpenSettings, () => Application.Quit());
+            m_Menu = MenuView.Create(m_Canvas.transform, Settings, this);
+        }
+
+        // ------------------------------------------------------------------ 導線 (docs/UX_PLAN.md)
+
+        private RectTransform m_Intro, m_About;
+        private RoleSelectView m_RoleSelect;
+
+        /// <summary>「はじめに」。初回起動時は自動で出す。</summary>
+        public void OpenIntro()
+        {
+            if (m_Intro != null) return;
+            m_Intro = OnboardingView.CreateIntro(m_Canvas.transform, OpenAboutCore, () =>
+            {
+                Settings.SeenIntro = true;
+                Settings.Save();
+                if (m_Intro != null) Destroy(m_Intro.gameObject);
+                m_Intro = null;
+            });
+        }
+
+        /// <summary>「CoRE について」(長い説明と公式サイトの QR)。</summary>
+        public void OpenAboutCore()
+        {
+            if (m_About != null) return;
+            m_About = OnboardingView.CreateAbout(m_Canvas.transform, () =>
+            {
+                if (m_About != null) Destroy(m_About.gameObject);
+                m_About = null;
+            });
+        }
+
+        /// <summary>「あなたの機体」(大会の試合に出る前)。</summary>
+        public void OpenRoleSelect()
+        {
+            if (m_RoleSelect != null) return;
+            m_RoleSelect = RoleSelectView.Create(m_Canvas.transform, Settings,
+                () => { Settings.Rules = Ruleset.Tournament; Settings.Save(); StartMatch(); },
+                () => { Settings.Rules = Ruleset.Tournament; Settings.Save(); OpenSettings(); },
+                () => { if (m_RoleSelect != null) Destroy(m_RoleSelect.gameObject); m_RoleSelect = null; });
+        }
+
+        public void StartCasual(GameMode mode)
+        {
+            Settings.Rules = Ruleset.Casual;
+            Settings.Mode = mode;
+            Settings.Save();
+            StartMatch();
+        }
+
+        public void StartStrider()
+        {
+            Settings.Rules = Ruleset.Strider;
+            Settings.Save();
+            StartMatch();
+        }
+
+        public void QuitGame() => Application.Quit();
+
+        /// <summary>試合前の 1 枚 (あなたの機体、目標、操作)。最初の人の視点に出す。ガイド OFF なら出さない。</summary>
+        private void ShowBriefing(RobotAgent agent, bool tournament)
+        {
+            if (agent == null) return;
+            BriefingView.Show(m_Canvas.transform, Settings, agent, tournament, Mathf.RoundToInt(Match != null ? Match.MatchSeconds : 120f));
         }
 
         private SettingsView m_Settings;
@@ -162,6 +226,9 @@ namespace CoreSim
         private void DestroyMenus()
         {
             if (m_Menu != null) { Destroy(m_Menu.gameObject); m_Menu = null; }
+            if (m_Intro != null) { Destroy(m_Intro.gameObject); m_Intro = null; }
+            if (m_About != null) { Destroy(m_About.gameObject); m_About = null; }
+            if (m_RoleSelect != null) { Destroy(m_RoleSelect.gameObject); m_RoleSelect = null; }
             if (m_NetMenu != null) { Destroy(m_NetMenu.gameObject); m_NetMenu = null; }
             if (m_Settings != null) { Destroy(m_Settings.gameObject); m_Settings = null; }
         }
@@ -805,6 +872,10 @@ namespace CoreSim
             m_Tick = 0;
             Time.timeScale = 1f;
             Match.Begin();
+            foreach (RobotAgent a in m_Robots)
+            {
+                if (a.IsPlayer) { ShowBriefing(a, tournament); break; }
+            }
             foreach (PlayerView v in m_Views)
             {
                 v.Hud.Refresh(this);
@@ -1162,6 +1233,7 @@ namespace CoreSim
                     if (agent.IsPlayer && m_Views.Count == 0)
                     {
                         PlayerView view = PlayerView.Create(agent, m_ClientInput, new Rect(0f, 0f, 1f, 1f), 0, Settings, m_Canvas.transform);
+                        ShowBriefing(agent, Tournament != null);
                         view.transform.SetParent(transform, false);
                         if (Tournament != null)
                         {
