@@ -184,6 +184,7 @@ namespace CoreSim
         // ------------------------------------------------------------------ チュートリアル
 
         private TutorialKind m_TutorialKind;
+        private TutorialKind m_TutorialPending;   // StartMatch の ClearMatch が設定を戻してしまわないよう、開始する試合の種類は ClearMatch の後で決める
         private TutorialRunner m_Tutorial;
         private (Ruleset rules, GameMode mode, PlayerRole role, int perSide, int builders, int autos, bool red, bool saved) m_BeforeTutorial;
 
@@ -191,11 +192,12 @@ namespace CoreSim
         public void StartTutorial(TutorialKind kind)
         {
             if (kind == TutorialKind.None) return;
+            ClearMatch();   // 前のチュートリアルが残っていれば、ここで設定が元に戻る
             if (!m_BeforeTutorial.saved)
             {
                 m_BeforeTutorial = (Settings.Rules, Settings.Mode, Settings.Role, Settings.RobotsPerSide, Settings.BuildersPerSide, Settings.AutosPerSide, Settings.PlayerIsRed, true);
             }
-            m_TutorialKind = kind;
+            m_TutorialPending = kind;
             Settings.Rules = Ruleset.Tournament;
             Settings.RobotsPerSide = 2;
             Settings.BuildersPerSide = kind == TutorialKind.Builder ? 1 : 0;
@@ -715,6 +717,8 @@ namespace CoreSim
         public void StartMatch()
         {
             ClearMatch();
+            m_TutorialKind = m_TutorialPending;
+            m_TutorialPending = TutorialKind.None;
             LeaveMenuForMatch();
             if (Role == NetRole.None && Settings.Rules == Ruleset.Strider)
             {
