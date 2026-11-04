@@ -39,6 +39,9 @@ namespace CoreSim.Editor
             public bool Strider;
             public Vector3 StriderPos;
             public float StriderYaw;
+            /// <summary>true なら、Camera は「向き」として使い、フィールド全体 (補給エリア込み) が余白 Margin で収まる位置と注視点を自動で決める。</summary>
+            public bool FitField;
+            public float Margin = 0.04f;
         }
 
         /// <summary>構図の一覧。カメラや機体の位置はここを書き換えて調整する。</summary>
@@ -47,8 +50,8 @@ namespace CoreSim.Editor
             new Shot
             {
                 Name = "intro_field", Width = 1520, Height = 860, Fov = 52f,
-                // 注視点をフィールドの中心 (原点) にすると、フィールドの中心が画像の中心に来る
-                Camera = new Vector3(-15f, 12.5f, -16f), LookAt = new Vector3(0f, 0f, 0f),
+                // フィールド全体 (補給エリア込み 27.6 x 15 m) が収まるよう、Camera の向きだけ使って位置と注視点は自動で合わせる
+                Camera = new Vector3(-0.45f, 0.95f, -0.7f), LookAt = new Vector3(0f, 0f, 0f), FitField = true, Margin = 0.03f,
                 Bots = new[]
                 {
                     new Bot(RobotKind.Attacker, true, new Vector3(-5f, 0f, -1.5f), 70f, head: true),
@@ -168,9 +171,14 @@ namespace CoreSim.Editor
                 var camGo = new GameObject("ShotCamera");
                 camGo.transform.SetParent(temp.transform, false);
                 var cam = camGo.AddComponent<Camera>();
+                cam.fieldOfView = shot.Fov;
                 cam.transform.position = shot.Camera;
                 cam.transform.LookAt(shot.LookAt);
-                cam.fieldOfView = shot.Fov;
+                if (shot.FitField)
+                {
+                    cam.aspect = (float)shot.Width / shot.Height;
+                    FrameBounds(cam, new Bounds(new Vector3(0f, 0.5f, 0f), new Vector3(27.6f, 1.2f, 15f)), shot.Camera.normalized, shot.Margin);
+                }
                 cam.nearClipPlane = 0.05f;
                 cam.farClipPlane = 200f;
                 cam.clearFlags = CameraClearFlags.SolidColor;
@@ -202,6 +210,39 @@ namespace CoreSim.Editor
                 Object.DestroyImmediate(temp);
                 UnityEngine.AI.NavMesh.RemoveAllNavMeshData();
             }
+        }
+
+        /// <summary>
+        /// 与えた向きから bounds の 8 隅が画面に収まり、収まった矩形が画面の中央に来るようにカメラの位置と注視点を決める。
+        /// 距離を縮めたり伸ばしたりしながら数回繰り返す。
+        /// </summary>
+        private static void FrameBounds(Camera cam, Bounds bounds, Vector3 direction, float margin)
+        {
+            Vector3 target = bounds.center;
+            float distance = bounds.size.magnitude;
+            var corners = new Vector3[8];
+            for (int iter = 0; iter < 12; iter++)
+            {
+                cam.transform.position = target + direction * distance;
+                cam.transform.LookAt(target);
+                float minX = 1f, maxX = 0f, minY = 1f, maxY = 0f;
+                for (int i = 0; i < 8; i++)
+                {
+                    corners[i] = bounds.center + Vector3.Scale(bounds.extents, new Vector3((i & 1) == 0 ? -1f : 1f, (i & 2) == 0 ? -1f : 1f, (i & 4) == 0 ? -1f : 1f));
+                    Vector3 v = cam.WorldToViewportPoint(corners[i]);
+                    minX = Mathf.Min(minX, v.x); maxX = Mathf.Max(maxX, v.x);
+                    minY = Mathf.Min(minY, v.y); maxY = Mathf.Max(maxY, v.y);
+                }
+                // 画面の中心へ寄せる: 中心のずれぶんだけ注視点をカメラの右・上方向に動かす
+                float cx = (minX + maxX) / 2f - 0.5f, cy = (minY + maxY) / 2f - 0.5f;
+                float viewH = 2f * distance * Mathf.Tan(cam.fieldOfView * 0.5f * Mathf.Deg2Rad);
+                target += cam.transform.right * (cx * viewH * cam.aspect) + cam.transform.up * (cy * viewH);
+                // 余白を残して収まるように距離を調整する
+                float span = Mathf.Max((maxX - minX) / (1f - 2f * margin), (maxY - minY) / (1f - 2f * margin));
+                distance *= Mathf.Lerp(1f, span, 0.8f);
+            }
+            cam.transform.position = target + direction * distance;
+            cam.transform.LookAt(target);
         }
 
         /// <summary>Edit モードでは物理が回らないので、関節の目標角をそのまま姿勢に反映する (見た目だけ)。</summary>
