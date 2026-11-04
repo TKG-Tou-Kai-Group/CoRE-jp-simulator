@@ -125,6 +125,10 @@ namespace CoreSim.Editor
         {
             var temp = new GameObject("TutorialShot_" + shot.Name);
             GameObject arena = null;
+            // Edit モードではシェーダの変種が非同期にコンパイルされ、終わるまで仮のシェーダ (ピンク) で描かれる。
+            // 撮っている間は同期にして、本物のシェーダで描く
+            bool async = ShaderUtil.allowAsyncCompilation;
+            ShaderUtil.allowAsyncCompilation = false;
             try
             {
                 arena = ArenaBuilder.Build(lowDetail: false);
@@ -173,6 +177,7 @@ namespace CoreSim.Editor
 
                 var rt = new RenderTexture(shot.Width, shot.Height, 24, RenderTextureFormat.ARGB32) { antiAliasing = 8 };
                 cam.targetTexture = rt;
+                cam.Render();   // 1 回目でシェーダがコンパイルされる。念のため 2 回描く
                 cam.Render();
                 RenderTexture.active = rt;
                 var tex = new Texture2D(shot.Width, shot.Height, TextureFormat.RGB24, false);
@@ -189,6 +194,7 @@ namespace CoreSim.Editor
             }
             finally
             {
+                ShaderUtil.allowAsyncCompilation = async;
                 if (arena != null) Object.DestroyImmediate(arena);
                 Object.DestroyImmediate(temp);
                 UnityEngine.AI.NavMesh.RemoveAllNavMeshData();
