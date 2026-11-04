@@ -9,6 +9,10 @@
 |---|---|---|
 | Windows 10 / 11 (64 bit) | `CoRE-jp-simulator_v0.6.0_Windows_amd64.zip` | 展開して `CoRE Simulator.exe` を実行 |
 | Linux (x86_64) | `CoRE-jp-simulator_v0.6.0_Linux_amd64.zip` | 展開して `./CoRE-jp-simulator.x86_64` を実行 (必要なら `chmod +x`) |
+| Android 7.1 以降 (arm64) | `CoRE-jp-simulator_v0.6.0_Android_arm64.apk` | タブレットに転送して開く (「提供元不明のアプリ」の許可が要る)。横向き。Bluetooth ゲームパッド対応 |
+
+Android 版は今回が初めてです。画面の仮想パッドでも遊べますが、ゲームパッドをつなぐ方が快適です。ネット対戦は同じ Wi-Fi で、
+部屋の一覧が出ないときはホストの IP を直接入れてください。
 
 ## 新しいこと
 

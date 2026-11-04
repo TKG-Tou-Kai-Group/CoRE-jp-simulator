@@ -25,3 +25,6 @@ crashlytics-build.properties
 # エディタの設定
 /.vscode/
 __pycache__/
+# Android の署名鍵は入れない
+*.keystore
+*.jks

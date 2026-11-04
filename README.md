@@ -135,7 +135,16 @@ IP を入力して「参加する」。ホストはロビーで形式 (個人戦
 
 - Unity **6000.3.21f1** (Unity_ROS2_Robot_Simulator と同じ版)。6000.0 LTS 以降なら動くはず
 - Windows 向け: Unity Hub で **Windows Build Support (Mono)** を入れる
-- Android 向け: Unity Hub で **Android Build Support** と OpenJDK / SDK / NDK を入れる
+- Android 向け: Unity Hub で **Android Build Support** と OpenJDK / SDK / NDK を入れる。配布するときの注意:
+  - **署名鍵**: Player Settings → Publishing Settings で自分のキーストアを作って使う (署名なしだと Unity が
+    その PC のデバッグ鍵で署名し、別の PC で作った apk で上書き更新できない)。キーストアとパスワードは
+    リポジトリに入れない (`*.keystore` / `*.jks` は .gitignore 済み)。鍵をなくすと以後の更新は上書きできない
+  - **バージョン番号**: `AndroidBundleVersionCode` は配布のたびに増やす (0.6.0 = 60、0.6.1 = 61 のように
+    「主 × 100 + 副 × 10 + 補正」)。同じ番号の apk は上書きインストールできない
+  - **パッケージ名** `jp.core.simulator` は変えない (変えると別アプリになり、設定も引き継がれない)
+  - **権限**: ネット対戦のために INTERNET を強制で付けている (`ForceInternetPermission`)。部屋探しのブロードキャストを
+    受けられるよう起動時に MulticastLock を取る。画面はゲームパッド操作中に暗くならないよう常時点灯
+  - **ビルド**: arm64 (IL2CPP) だけ。Google Play に出す場合は apk ではなく aab が要る (配布は apk のまま)
 
 このリポジトリは Unity プロジェクトそのものです (`Assets/`, `Packages/`, `ProjectSettings/`)。
 ステージのメッシュ (`Assets/Resources/Stage/*.stl`) は `Assets/Editor/StlImporter.cs` が取り込むので、
