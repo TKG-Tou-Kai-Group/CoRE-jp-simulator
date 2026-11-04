@@ -65,7 +65,11 @@ namespace CoreSim
             m_Hint.rectTransform.offsetMin = new Vector2(20f, m_Hint.rectTransform.offsetMin.y);
             m_Hint.rectTransform.offsetMax = new Vector2(-320f, m_Hint.rectTransform.offsetMax.y);
             m_Hint.horizontalOverflow = HorizontalWrapMode.Wrap;
-            m_RouteInfo = UiKit.Label(UiKit.Rect(m_Root, "Route", new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-170f, -22f), new Vector2(320f, 34f)), "Text", "", 16, new Color(1f, 0.9f, 0.5f), TextAnchor.MiddleRight);
+            // 見出しの行の右側 (ボタンの列にかからない範囲) に「次の印まで N m」
+            RectTransform routeRow = UiKit.Rect(m_Root, "Route", new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -22f), new Vector2(0f, 34f));
+            routeRow.offsetMin = new Vector2(20f, routeRow.offsetMin.y);
+            routeRow.offsetMax = new Vector2(-320f, routeRow.offsetMax.y);
+            m_RouteInfo = UiKit.Label(routeRow, "Text", "", 16, new Color(1f, 0.9f, 0.5f), TextAnchor.MiddleRight);
 
             m_Buttons = UiKit.Rect(m_Root, "Buttons", new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-150f, 0f), new Vector2(280f, 120f));
             var bl = m_Buttons.gameObject.AddComponent<VerticalLayoutGroup>();
