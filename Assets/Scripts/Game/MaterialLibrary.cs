@@ -41,6 +41,29 @@ namespace CoreSim
             return m;
         }
 
+        private static Material s_Text3D;
+
+        /// <summary>
+        /// 機体の番号札 (TextMesh) 用。フォントの標準マテリアル (GUI/Text Shader) は深度を見ずに描くので壁の向こうの
+        /// 番号が透けて相手の位置が分かってしまう。深度を見るシェーダで同じフォントのテクスチャを使う。
+        /// フォントのテクスチャは文字が増えると作り直されるので、そのたびに差し替える。
+        /// </summary>
+        public static Material Text3D
+        {
+            get
+            {
+                if (s_Text3D == null)
+                {
+                    Shader shader = Resources.Load<Shader>("Shaders/Text3D");
+                    Font font = UiKit.Font;
+                    if (shader == null || font == null) return font != null ? font.material : null;
+                    s_Text3D = new Material(shader) { name = "text3d", mainTexture = font.material.mainTexture };
+                    Font.textureRebuilt += f => { if (f == font && s_Text3D != null) s_Text3D.mainTexture = f.material.mainTexture; };
+                }
+                return s_Text3D;
+            }
+        }
+
         private static Shader StandardShader
         {
             get

@@ -210,7 +210,7 @@ namespace CoreSim
                 text.anchor = TextAnchor.MiddleCenter;
                 text.alignment = TextAlignment.Center;
                 text.color = Color.white;
-                label.GetComponent<MeshRenderer>().sharedMaterial = UiKit.Font.material;
+                label.GetComponent<MeshRenderer>().sharedMaterial = MaterialLibrary.Text3D;   // 壁の向こうには見えない (深度あり)
             }
 
             // ---- ミニマップ用マーカー (MinimapOnly レイヤ、3 m 上空に浮かぶ矢印) ----
