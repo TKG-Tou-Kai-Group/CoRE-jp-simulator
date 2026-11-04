@@ -67,6 +67,9 @@ namespace CoreSim
         }
 
         /// <summary>開始位置へ戻し、HP を満タンにする。</summary>
+        /// <summary>開始位置を変える (チュートリアルで場所を移すため)。次の ResetToStart で反映。</summary>
+        public void SetStartPose(Pose pose) => m_StartPose = pose;
+
         public void ResetToStart()
         {
             Health.Reset();

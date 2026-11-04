@@ -38,6 +38,10 @@ namespace CoreSim
         private Text m_BuilderHint;   // かんたんルールのビルダーの案内 (大会ルールでは TournamentHud が出す)
         private Text m_BotDebug;      // F9: CPU の判断の中身
         private Text m_Objective;     // 今の目標 (1 行)
+        private Text m_HintLine;      // 初回だけのヒント (目標の帯の下)
+        private Text m_ResultDetail;  // 結果画面の内訳と「次に試すこと」
+        private float m_HintUntil;
+        private bool m_WasKo, m_WasEmpty, m_BaseOpenShown;
         private GameSettings m_Settings;
         private static int s_GuideToggleFrame = -1;
         private float m_GuideNoticeUntil;
@@ -87,6 +91,12 @@ namespace CoreSim
             RectTransform obj = UiKit.Rect(root, "Objective", new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -192f), new Vector2(1400f, 40f));
             UiKit.Image(obj, "bg", new Color(0f, 0f, 0f, 0.4f), Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
             hud.m_Objective = UiKit.Label(obj, "Text", "", 18, new Color(1f, 0.92f, 0.6f));
+            RectTransform hintRow = UiKit.Rect(root, "HintLine", new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -232f), new Vector2(1400f, 34f));
+            hud.m_HintLine = UiKit.Label(hintRow, "Text", "", 16, new Color(0.8f, 0.95f, 1f));
+            hud.m_HintLine.horizontalOverflow = HorizontalWrapMode.Wrap;
+            RectTransform detail = UiKit.Rect(root, "ResultDetail", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, -20f), new Vector2(1500f, 120f));
+            hud.m_ResultDetail = UiKit.Label(detail, "Text", "", 20, new Color(0.9f, 0.95f, 1f));
+            hud.m_ResultDetail.horizontalOverflow = HorizontalWrapMode.Wrap;
 
             // 左中段: CPU のデバッグ表示 (F9)
             RectTransform dbg = UiKit.Rect(root, "BotDebug", new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(20f, 0f), new Vector2(900f, 400f));
@@ -179,6 +189,34 @@ namespace CoreSim
             }
         }
 
+        /// <summary>初めて起きた出来事にだけ出すヒント (撃破された、弾切れ、陣地攻撃の解禁)。</summary>
+        private void UpdateHints(GameDirector director, bool guide)
+        {
+            if (m_HintLine == null) return;
+            if (m_Self != null && director.Match.Phase == MatchPhase.Playing)
+            {
+                bool ko = m_Self.IsKnockedOut;
+                if (ko && !m_WasKo) Hint(m_Self.IsHeadAttacker ? "撃破されました。ヘッドアタッカーは復活しません (ラウンドは続きます)" : "撃破されました。30 秒後に開始位置で復活します (開始 3 分以内なら)");
+                m_WasKo = ko;
+                if (director.Tournament != null && director.Tournament.View.Robots.TryGetValue(m_Self.Index, out RobotExtra me))
+                {
+                    bool empty = me.Magazine == 0 && !me.IsBuilder && !me.IsAuto;
+                    if (empty && !m_WasEmpty) Hint("残弾が 0 になりました。1 キーでピットインを発動し、自同盟の補給エリアへ入ると装填できます (20 秒停止)");
+                    m_WasEmpty = empty;
+                    bool baseOpen = director.Tournament.View.BaseAttackActive(director.Tournament.Config);
+                    if (baseOpen && !m_BaseOpenShown && !me.IsBuilder) Hint("開始 3 分がたち、相手の陣地を攻撃できます。陣地の低い位置の板を撃つと HP が減り、撃破で +100VP");
+                    if (baseOpen) m_BaseOpenShown = true;
+                }
+            }
+            m_HintLine.text = guide && Time.time < m_HintUntil ? m_HintLine.text : "";
+        }
+
+        private void Hint(string text)
+        {
+            m_HintLine.text = "ヒント: " + text;
+            m_HintUntil = Time.time + 6f;
+        }
+
         /// <summary>今の目標。役割と状況から 1 行で。初めての人が「何をすれば得点か」を見失わないため。</summary>
         private string ObjectiveText(GameDirector director)
         {
@@ -237,6 +275,11 @@ namespace CoreSim
                 m_GuideNoticeUntil = Time.time + 2f;
             }
             bool guide = m_Settings == null || m_Settings.ShowGuide;
+            UpdateHints(director, guide);
+            if (m_ResultDetail != null)
+            {
+                m_ResultDetail.text = match.Phase == MatchPhase.Result && guide ? director.ResultDetails(m_Self) : "";
+            }
             if (m_Objective != null)
             {
                 m_Objective.transform.parent.gameObject.SetActive(guide || Time.time < m_GuideNoticeUntil);

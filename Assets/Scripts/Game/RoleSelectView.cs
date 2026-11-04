@@ -21,7 +21,8 @@ namespace CoreSim
             (PlayerRole.AutoAttacker, "オートアタッカー", "自分で書いたプログラムで自動で戦う (HP 200)", "撃破 +10VP、陣地撃破 +100VP。人は見ているだけ", "試合前にプログラムを作る (設定 → 自分のプログラム)", "Tutorial/role_auto", new Color(0.2f, 0.35f, 0.5f, 0.9f)),
         };
 
-        public static RoleSelectView Create(Transform parent, GameSettings settings, System.Action onStart, System.Action onSettings, System.Action onBack)
+        public static RoleSelectView Create(Transform parent, GameSettings settings, System.Action onStart, System.Action onSettings, System.Action onBack,
+                                            System.Action<TutorialKind> onTutorial = null, System.Action onEditProgram = null)
         {
             RectTransform root = UiKit.Panel(parent, "RoleSelect", new Color(0.03f, 0.05f, 0.08f, 0.96f), Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
             var view = root.gameObject.AddComponent<RoleSelectView>();
@@ -55,11 +56,22 @@ namespace CoreSim
                 desc.horizontalOverflow = HorizontalWrapMode.Wrap;
                 desc.verticalOverflow = VerticalWrapMode.Truncate;
                 desc.lineSpacing = 1.1f;
-                Button pick = UiKit.Button(card, "これにする", new Vector2(300f, 56f), () => view.Pick(index), new Color(0.3f, 0.4f, 0.55f, 0.95f), 24);
+                Button pick = UiKit.Button(card, "これにする", new Vector2(210f, 56f), () => view.Pick(index), new Color(0.3f, 0.4f, 0.55f, 0.95f), 22);
                 var prt = (RectTransform)pick.transform;
                 prt.anchorMin = new Vector2(0.5f, 0f);
                 prt.anchorMax = new Vector2(0.5f, 0f);
-                prt.anchoredPosition = new Vector2(0f, 46f);
+                prt.anchoredPosition = new Vector2(-110f, 46f);
+                // 機体ごとの手ほどき (飛ばせる)。オートアタッカーはプログラムの編集画面がそのまま教材
+                string tutLabel = c.role == PlayerRole.AutoAttacker ? "プログラムを作る" : "手ほどき";
+                Button tut = UiKit.Button(card, tutLabel, new Vector2(210f, 56f), () =>
+                {
+                    if (c.role == PlayerRole.AutoAttacker) onEditProgram?.Invoke();
+                    else onTutorial?.Invoke(c.role == PlayerRole.Builder ? TutorialKind.Builder : TutorialKind.Attacker);
+                }, new Color(0.2f, 0.45f, 0.35f, 0.95f), 20);
+                var trt = (RectTransform)tut.transform;
+                trt.anchorMin = new Vector2(0.5f, 0f);
+                trt.anchorMax = new Vector2(0.5f, 0f);
+                trt.anchoredPosition = new Vector2(115f, 46f);
                 if (i == 0) first = pick;
             }
 

@@ -32,12 +32,13 @@ namespace CoreSim
             // 1. 撃ち合う (かんたんルール)
             RectTransform c1 = Card(cards, "撃ち合う", "Tutorial/mode_shoot", new Color(0.5f, 0.25f, 0.2f, 0.9f),
                                     "ディスクを撃ち合うだけの短い試合。操作を覚えるのに向いている (HP 200、2 分)");
-            RectTransform grid = UiKit.Rect(c1, "Grid", new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 92f), new Vector2(420f, 124f));
+            RectTransform grid = UiKit.Rect(c1, "Grid", new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 100f), new Vector2(420f, 170f));
             var gl = grid.gameObject.AddComponent<GridLayoutGroup>();
-            gl.cellSize = new Vector2(205f, 56f);
+            gl.cellSize = new Vector2(205f, 50f);
             gl.spacing = new Vector2(10f, 10f);
             gl.childAlignment = TextAnchor.MiddleCenter;
-            Button first = UiKit.Button(grid, "ひとりで (vs CPU)", Vector2.zero, () => director.StartCasual(GameMode.SoloVsCpu), new Color(0.85f, 0.35f, 0.2f, 0.95f), 17);
+            Button first = UiKit.Button(grid, "まず操作の手ほどき", Vector2.zero, () => director.StartTutorial(TutorialKind.Attacker), new Color(0.2f, 0.45f, 0.35f, 0.95f), 17);
+            UiKit.Button(grid, "ひとりで (vs CPU)", Vector2.zero, () => director.StartCasual(GameMode.SoloVsCpu), new Color(0.85f, 0.35f, 0.2f, 0.95f), 17);
             UiKit.Button(grid, "チーム戦 (2 vs 2)", Vector2.zero, () => director.StartCasual(GameMode.TeamVsCpu), new Color(0.7f, 0.3f, 0.2f, 0.95f), 17);
             UiKit.Button(grid, "ふたりで (画面分割)", Vector2.zero, () => director.StartCasual(GameMode.LocalVersus), new Color(0.7f, 0.3f, 0.2f, 0.95f), 17);
             UiKit.Button(grid, "練習 (的を撃つ)", Vector2.zero, () => director.StartCasual(GameMode.Practice), new Color(0.7f, 0.3f, 0.2f, 0.95f), 17);
@@ -83,7 +84,7 @@ namespace CoreSim
             OnboardingView.Picture(p, pic, fallback, $"{name}の絵 ({pic.Substring(9)}.png)");
             // 文字は 1.25 倍で描かれる (UiKit.FontScale)。名前 30 → 38 px、説明 17 → 21 px で 3 行まで
             UiKit.Label(UiKit.Rect(card, "Name", new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -274f), new Vector2(430f, 46f)), "Text", name, 30, Color.white);
-            Text d = UiKit.Label(UiKit.Rect(card, "Desc", new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -345f), new Vector2(416f, 90f)), "Text", desc, 17, new Color(0.9f, 0.92f, 0.95f), TextAnchor.UpperCenter, false);
+            Text d = UiKit.Label(UiKit.Rect(card, "Desc", new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -336f), new Vector2(416f, 72f)), "Text", desc, 16, new Color(0.9f, 0.92f, 0.95f), TextAnchor.UpperCenter, false);
             d.horizontalOverflow = HorizontalWrapMode.Wrap;
             d.verticalOverflow = VerticalWrapMode.Truncate;
             return card;

@@ -344,6 +344,12 @@ namespace CoreSim.Rules
             m_EffectEnd[0] = m_EffectEnd[1] = -1f;
         }
 
+        /// <summary>チュートリアル用: ラウンドの時間を進める (陣地攻撃の解禁などを待たずに見せる)。</summary>
+        public void AdvanceTimeForTutorial(float seconds)
+        {
+            if (seconds > 0f) Time += seconds;
+        }
+
         public void Tick(float dt)
         {
             if (!Running || Finished) return;

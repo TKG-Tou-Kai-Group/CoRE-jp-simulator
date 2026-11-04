@@ -159,7 +159,9 @@ namespace CoreSim
             m_RoleSelect = RoleSelectView.Create(m_Canvas.transform, Settings,
                 () => { Settings.Rules = Ruleset.Tournament; Settings.Save(); StartMatch(); },
                 () => { Settings.Rules = Ruleset.Tournament; Settings.Save(); OpenSettings(); },
-                () => { if (m_RoleSelect != null) Destroy(m_RoleSelect.gameObject); m_RoleSelect = null; });
+                () => { if (m_RoleSelect != null) Destroy(m_RoleSelect.gameObject); m_RoleSelect = null; },
+                kind => { Settings.Save(); StartTutorial(kind); },
+                OpenProgramEditor);
         }
 
         public void StartCasual(GameMode mode)
@@ -178,6 +180,101 @@ namespace CoreSim
         }
 
         public void QuitGame() => Application.Quit();
+
+        // ------------------------------------------------------------------ チュートリアル
+
+        private TutorialKind m_TutorialKind;
+        private TutorialRunner m_Tutorial;
+        private (Ruleset rules, GameMode mode, PlayerRole role, int perSide, int builders, int autos, bool red, bool saved) m_BeforeTutorial;
+
+        /// <summary>機体ごとのチュートリアルを始める (大会ルール、相手は止まったまま)。終わったら設定を元に戻す。</summary>
+        public void StartTutorial(TutorialKind kind)
+        {
+            if (kind == TutorialKind.None) return;
+            if (!m_BeforeTutorial.saved)
+            {
+                m_BeforeTutorial = (Settings.Rules, Settings.Mode, Settings.Role, Settings.RobotsPerSide, Settings.BuildersPerSide, Settings.AutosPerSide, Settings.PlayerIsRed, true);
+            }
+            m_TutorialKind = kind;
+            Settings.Rules = Ruleset.Tournament;
+            Settings.RobotsPerSide = 2;
+            Settings.BuildersPerSide = kind == TutorialKind.Builder ? 1 : 0;
+            Settings.AutosPerSide = 0;
+            Settings.Role = kind == TutorialKind.Builder ? PlayerRole.Builder : PlayerRole.Attacker;
+            Settings.PlayerIsRed = true;
+            StartMatch();
+        }
+
+        private void RestoreAfterTutorial()
+        {
+            if (!m_BeforeTutorial.saved) return;
+            Settings.Rules = m_BeforeTutorial.rules;
+            Settings.Mode = m_BeforeTutorial.mode;
+            Settings.Role = m_BeforeTutorial.role;
+            Settings.RobotsPerSide = m_BeforeTutorial.perSide;
+            Settings.BuildersPerSide = m_BeforeTutorial.builders;
+            Settings.AutosPerSide = m_BeforeTutorial.autos;
+            Settings.PlayerIsRed = m_BeforeTutorial.red;
+            m_BeforeTutorial.saved = false;
+            Settings.Save();
+        }
+
+        /// <summary>チュートリアルを終えて、同じ機体で本当の試合へ。</summary>
+        public void FinishTutorialAndPlay()
+        {
+            PlayerRole role = Settings.Role;
+            ClearMatch();   // ここで設定が元に戻る
+            Settings.Rules = Ruleset.Tournament;
+            Settings.Role = role;
+            Settings.Save();
+            LeaveMenuForMatch();
+            StartMatch();
+        }
+
+        /// <summary>チュートリアル中: 自分以外の機体は止めておき、相手 (青のヘッド) を練習の的にする。</summary>
+        private RobotAgent SetupTutorialAgents()
+        {
+            RobotAgent target = null;
+            foreach (RobotAgent r in m_Robots)
+            {
+                if (r.IsPlayer) continue;
+                r.Source = null;
+                if (target == null && r.Team == Team.Blue && r.IsHeadAttacker) target = r;
+            }
+            return target;
+        }
+
+        /// <summary>結果画面の内訳と「次に試すこと」。</summary>
+        public string ResultDetails(RobotAgent self)
+        {
+            if (self == null) return "";
+            var sb = new System.Text.StringBuilder();
+            string next;
+            if (Tournament != null && Tournament.Round != null)
+            {
+                TournamentRobot me = Tournament.Round.Find(self.Index);
+                Side side = TournamentController.SideOf(self.Team);
+                TournamentAlliance mine = Tournament.Round.Of(side);
+                bool won = Tournament.Round.Finished && Tournament.Round.Winner == side;
+                if (me != null)
+                {
+                    if (self.IsBuilder) sb.Append($"運んだコンテナ {mine.Containers} 個   獲得したサイト {mine.SitesAcquired} 個   ");
+                    else sb.Append($"発射 {me.Shots} 発   与えたダメージ {me.DamageDealt}   撃破 {me.Kills} 台   被弾 {me.HitsTaken} 発   ");
+                    sb.Append($"同盟の反則 {mine.Fouls} 回");
+                }
+                if (self.IsBuilder) next = won ? "次は 1 つの段に 4 個並べて +50VP を狙う" : "次はビルドサイト 1 を取って自分の防御を 2 倍にしてから運ぶ";
+                else if (self.IsAuto) next = "次はプログラムに「HP が 30% 未満 → 戻る」の行を足して生き残りを長くする";
+                else if (me != null && me.Shots > 0 && me.DamageDealt * 10 < me.Shots * 3) next = "次は相手の横や後ろの装甲板を狙う (命中率が上がる)";
+                else next = won ? "次は 3 分後の陣地攻撃 (+100VP) を早めに決める" : "次は弾が尽きる前にピットインを発動して、戦線を離れる時間を短くする";
+            }
+            else
+            {
+                sb.Append($"発射 {self.ShotCount} 発   被弾 {self.Health.Hits} 発   残り HP {self.Health.Hp}");
+                next = self.Health.Hp > 0 ? "次は大会ルールの試合で、ビルダーやオートアタッカーも試す" : "次は相手の横や後ろの装甲板を狙い、撃たれたら横に動いてかわす";
+            }
+            sb.Append("\n次に試すこと: ").Append(next);
+            return sb.ToString();
+        }
 
         /// <summary>試合前の 1 枚 (あなたの機体、目標、操作)。最初の人の視点に出す。ガイド OFF なら出さない。</summary>
         private void ShowBriefing(RobotAgent agent, bool tournament)
@@ -682,7 +779,7 @@ namespace CoreSim
                 Match = new MatchState
                 {
                     Mode = MatchMode.Team,
-                    CountdownSeconds = Tuning.PreCountdownSeconds,
+                    CountdownSeconds = m_TutorialKind != TutorialKind.None ? 2f : Tuning.PreCountdownSeconds,
                     ResultSeconds = 15f,
                     Unlimited = true,
                 };
@@ -738,6 +835,7 @@ namespace CoreSim
                 Tournament = new TournamentController { Field = ArenaBuilder.Field2027 };
                 Tournament.OnEvent = OnTournamentEvent;
                 Tournament.Config.MagazineCapacity = Mathf.Clamp(Settings.Magazine, 10, 200);
+                if (m_TutorialKind != TutorialKind.None) Tournament.Config.RoundSeconds = 3600f;   // チュートリアルは時間切れにしない
             }
 
             int localPlayers = 0;
@@ -840,7 +938,7 @@ namespace CoreSim
                         // 人と数えると、その同盟に総大将が付かず、弾切れの CPU にピットインが出なかった
                         if (TournamentController.SideOf(r.Team) == side && !(r.Source is IBotStatus)) human = true;
                     }
-                    if (!human) m_Commanders.Add(new BotCommander { Side = side, Tournament = Tournament });
+                    if (!human && m_TutorialKind == TutorialKind.None) m_Commanders.Add(new BotCommander { Side = side, Tournament = Tournament });
                 }
                 Tournament.BeginRound();
             }
@@ -872,9 +970,21 @@ namespace CoreSim
             m_Tick = 0;
             Time.timeScale = 1f;
             Match.Begin();
-            foreach (RobotAgent a in m_Robots)
+            if (m_TutorialKind != TutorialKind.None)
             {
-                if (a.IsPlayer) { ShowBriefing(a, tournament); break; }
+                RobotAgent target = SetupTutorialAgents();
+                foreach (PlayerView v in m_Views)
+                {
+                    m_Tutorial = TutorialRunner.Create(this, m_TutorialKind, v.Robot, target, v.Hud, m_Canvas.transform);
+                    break;
+                }
+            }
+            else
+            {
+                foreach (RobotAgent a in m_Robots)
+                {
+                    if (a.IsPlayer) { ShowBriefing(a, tournament); break; }
+                }
             }
             foreach (PlayerView v in m_Views)
             {
@@ -960,6 +1070,16 @@ namespace CoreSim
 
         private void ClearMatch()
         {
+            if (m_Tutorial != null)
+            {
+                Destroy(m_Tutorial.gameObject);
+                m_Tutorial = null;
+            }
+            if (m_TutorialKind != TutorialKind.None)
+            {
+                m_TutorialKind = TutorialKind.None;
+                RestoreAfterTutorial();
+            }
             if (m_Strider != null)
             {
                 Destroy(m_Strider.gameObject);
