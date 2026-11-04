@@ -34,10 +34,11 @@ namespace CoreSim
             if (view.m_Program.Rules.Count == 0) view.m_Program = AutoProgram.Default();
 
             RectTransform title = UiKit.Rect(root, "Title", new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -50f), new Vector2(1500f, 70f));
-            UiKit.Label(title, "Text", "オートアタッカーのプログラム", 48, Color.white);
-            RectTransform help = UiKit.Rect(root, "Help", new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -120f), new Vector2(1500f, 60f));
-            UiKit.Label(help, "Text", "上の行から順に条件を調べ、最初に成り立った行の行動をとります (どれも成り立たなければ最寄りの敵と交戦)。\n" +
-                                      "ボタンを押すと候補が切り替わります。試合中に人がすることは無く、ラウンド開始 2 秒後に自動で始動します。", 22, new Color(0.85f, 0.9f, 1f));
+            UiKit.Label(title, "Text", "オートアタッカーのプログラム", 40, Color.white);
+            RectTransform help = UiKit.Rect(root, "Help", new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -120f), new Vector2(1560f, 60f));
+            Text helpText = UiKit.Label(help, "Text", "上の行から順に条件を調べ、最初に成り立った行の行動をとります (どれも成り立たなければ最寄りの敵と交戦)。\n" +
+                                      "ボタンを押すと候補が切り替わります。試合中に人がすることは無く、ラウンド開始 2 秒後に自動で始動します。", 17, new Color(0.85f, 0.9f, 1f));
+            helpText.horizontalOverflow = HorizontalWrapMode.Wrap;
 
             view.m_Content = UiKit.ScrollView(root, "Body", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, -40f), new Vector2(1560f, 620f),
                                               new Color(0f, 0f, 0f, 0.55f), new RectOffset(20, 20, 16, 16), 8f, controlChildSize: false);
@@ -50,7 +51,7 @@ namespace CoreSim
             UiKit.Button(foot, "保存 / 読み込み", new Vector2(260f, 60f), () => view.OpenSlots(), new Color(0.3f, 0.3f, 0.45f, 0.95f), 26);
             UiKit.Button(foot, "戻る", new Vector2(240f, 60f), () => { view.Save(); onBack?.Invoke(); }, new Color(0.25f, 0.35f, 0.5f, 0.95f), 26);
             RectTransform prev = UiKit.Rect(root, "Preview", new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 40f), new Vector2(1560f, 40f));
-            view.m_Preview = UiKit.Label(prev, "Text", "", 18, new Color(0.7f, 0.7f, 0.75f));
+            view.m_Preview = UiKit.Label(prev, "Text", "", 14, new Color(0.7f, 0.7f, 0.75f));
             view.Rebuild();
             return view;
         }

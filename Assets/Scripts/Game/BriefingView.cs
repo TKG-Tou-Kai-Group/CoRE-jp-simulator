@@ -41,17 +41,21 @@ namespace CoreSim
                 keys = "移動: 矢印 / 左スティック   旋回: A D / 右スティック   発射: Space / RB   ターボ: Shift / LB   地図: V / Y";
             }
 
-            RectTransform root = UiKit.Panel(parent, "Briefing", new Color(0f, 0f, 0f, 0.55f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
-                                             new Vector2(-760f, -200f), new Vector2(760f, 200f));
+            RectTransform root = UiKit.Panel(parent, "Briefing", new Color(0f, 0f, 0f, 0.6f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
+                                             new Vector2(-760f, -230f), new Vector2(760f, 230f));
             var view = root.gameObject.AddComponent<BriefingView>();
             view.m_CloseAt = Time.time + (first ? 6f : 2.5f);
-            UiKit.Label(UiKit.Rect(root, "Role", new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -50f), new Vector2(1480f, 70f)), "Text",
-                        $"あなたは {side}{role}", 44, new Color(1f, 0.85f, 0.4f));
-            Text g = UiKit.Label(UiKit.Rect(root, "Goal", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, 20f), new Vector2(1440f, 150f)), "Text", goal, 26, Color.white);
+            // 文字は 1.25 倍で描かれる。目標は 22 → 28 px で折り返し最大 5 行
+            UiKit.Label(UiKit.Rect(root, "Role", new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -45f), new Vector2(1480f, 60f)), "Text",
+                        $"あなたは {side}{role}", 36, new Color(1f, 0.85f, 0.4f));
+            Text g = UiKit.Label(UiKit.Rect(root, "Goal", new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -185f), new Vector2(1420f, 200f)), "Text", goal, 22, Color.white, TextAnchor.UpperCenter, false);
             g.horizontalOverflow = HorizontalWrapMode.Wrap;
-            UiKit.Label(UiKit.Rect(root, "Keys", new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 60f), new Vector2(1480f, 40f)), "Text", keys, 20, new Color(0.85f, 0.9f, 1f));
-            UiKit.Label(UiKit.Rect(root, "Skip", new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 22f), new Vector2(1480f, 30f)), "Text",
-                        "何かキーを押すか画面に触れると閉じます   (ガイドは H / パッドの Select でいつでも ON / OFF)", 18, new Color(0.7f, 0.7f, 0.75f));
+            g.verticalOverflow = VerticalWrapMode.Truncate;
+            g.lineSpacing = 1.15f;
+            Text k = UiKit.Label(UiKit.Rect(root, "Keys", new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 75f), new Vector2(1440f, 60f)), "Text", keys, 17, new Color(0.85f, 0.9f, 1f));
+            k.horizontalOverflow = HorizontalWrapMode.Wrap;
+            UiKit.Label(UiKit.Rect(root, "Skip", new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 24f), new Vector2(1480f, 30f)), "Text",
+                        "何かキーを押すか画面に触れると閉じます   (ガイドは H / パッドの Select でいつでも ON / OFF)", 15, new Color(0.7f, 0.7f, 0.75f));
             return view;
         }
 

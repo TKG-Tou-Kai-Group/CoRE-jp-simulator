@@ -25,7 +25,7 @@ namespace CoreSim
             var view = root.gameObject.AddComponent<MapPickerView>();
 
             RectTransform title = UiKit.Rect(root, "Title", new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -50f), new Vector2(1500f, 60f));
-            UiKit.Label(title, "Text", "地図の印を押して行き先を選ぶ  (左が自同盟の陣地側、右が相手側)", 32, Color.white);
+            UiKit.Label(title, "Text", "地図の印を押して行き先を選ぶ  (左が自同盟の陣地側、右が相手側)", 26, Color.white);
 
             // 真上からの絵
             view.m_Texture = new RenderTexture(TexW, TexH, 16) { name = "mappicker" };

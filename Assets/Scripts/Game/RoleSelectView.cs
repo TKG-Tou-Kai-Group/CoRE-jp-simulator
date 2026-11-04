@@ -28,11 +28,11 @@ namespace CoreSim
             view.m_Settings = settings;
 
             RectTransform title = UiKit.Rect(root, "Title", new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -80f), new Vector2(1500f, 90f));
-            UiKit.Label(title, "Text", "あなたの機体を選ぶ", 56, Color.white);
+            UiKit.Label(title, "Text", "あなたの機体を選ぶ", 44, Color.white);
             RectTransform sub = UiKit.Rect(root, "Sub", new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -140f), new Vector2(1500f, 40f));
-            UiKit.Label(sub, "Text", "大会ルールの試合に、この機体で出ます。同盟のほかの機体は CPU です", 24, new Color(0.85f, 0.9f, 1f));
+            UiKit.Label(sub, "Text", "大会ルールの試合に、この機体で出ます。同盟のほかの機体は CPU です", 20, new Color(0.85f, 0.9f, 1f));
 
-            RectTransform cards = UiKit.Rect(root, "Cards", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, 40f), new Vector2(1500f, 520f));
+            RectTransform cards = UiKit.Rect(root, "Cards", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, 30f), new Vector2(1500f, 560f));
             var layout = cards.gameObject.AddComponent<HorizontalLayoutGroup>();
             layout.spacing = 30f;
             layout.childControlWidth = false;
@@ -44,19 +44,22 @@ namespace CoreSim
             {
                 int index = i;
                 var c = s_Cards[i];
-                RectTransform card = UiKit.Rect(cards, "Card_" + c.name, Vector2.zero, Vector2.zero, Vector2.zero, new Vector2(470f, 520f));
+                RectTransform card = UiKit.Rect(cards, "Card_" + c.name, Vector2.zero, Vector2.zero, Vector2.zero, new Vector2(470f, 560f));
                 view.m_CardBg[i] = UiKit.Image(card, "bg", new Color(0.12f, 0.14f, 0.18f, 0.95f), Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
                 RectTransform pic = UiKit.Rect(card, "Pic", new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -120f), new Vector2(440f, 220f));
                 OnboardingView.Picture(pic, c.pic, c.color, $"{c.name}の絵 ({c.pic.Substring(9)}.png)");
-                UiKit.Label(UiKit.Rect(card, "Name", new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -258f), new Vector2(440f, 44f)), "Text", c.name, 34, Color.white);
-                Text desc = UiKit.Label(UiKit.Rect(card, "Desc", new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -360f), new Vector2(430f, 150f)), "Text",
-                    $"{c.what}\n得点: {c.score}\n操作: {c.keys}", 19, new Color(0.9f, 0.92f, 0.95f), TextAnchor.UpperLeft, false);
+                // 文字は 1.25 倍で描かれる。名前 28 → 35 px、説明 16 → 20 px (3 項目、折り返して最大 6 行)
+                UiKit.Label(UiKit.Rect(card, "Name", new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -254f), new Vector2(440f, 44f)), "Text", c.name, 28, Color.white);
+                Text desc = UiKit.Label(UiKit.Rect(card, "Desc", new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -372f), new Vector2(430f, 180f)), "Text",
+                    $"{c.what}\n得点: {c.score}\n操作: {c.keys}", 16, new Color(0.9f, 0.92f, 0.95f), TextAnchor.UpperLeft, false);
                 desc.horizontalOverflow = HorizontalWrapMode.Wrap;
-                Button pick = UiKit.Button(card, "これにする", new Vector2(300f, 60f), () => view.Pick(index), new Color(0.3f, 0.4f, 0.55f, 0.95f), 26);
+                desc.verticalOverflow = VerticalWrapMode.Truncate;
+                desc.lineSpacing = 1.1f;
+                Button pick = UiKit.Button(card, "これにする", new Vector2(300f, 56f), () => view.Pick(index), new Color(0.3f, 0.4f, 0.55f, 0.95f), 24);
                 var prt = (RectTransform)pick.transform;
                 prt.anchorMin = new Vector2(0.5f, 0f);
                 prt.anchorMax = new Vector2(0.5f, 0f);
-                prt.anchoredPosition = new Vector2(0f, 50f);
+                prt.anchoredPosition = new Vector2(0f, 46f);
                 if (i == 0) first = pick;
             }
 
@@ -67,9 +70,9 @@ namespace CoreSim
             ol.childControlHeight = false;
             ol.childForceExpandWidth = false;
             ol.childAlignment = TextAnchor.MiddleCenter;
-            view.m_HeadButton = UiKit.Button(opts, "", new Vector2(600f, 56f), () => { settings.Role = settings.Role == PlayerRole.Head ? PlayerRole.Attacker : PlayerRole.Head; view.Refresh(); }, new Color(0.3f, 0.3f, 0.4f, 0.95f), 22);
-            view.m_SideButton = UiKit.Button(opts, "", new Vector2(360f, 56f), () => { settings.PlayerIsRed = !settings.PlayerIsRed; view.Refresh(); }, new Color(0.3f, 0.3f, 0.4f, 0.95f), 22);
-            UiKit.Button(opts, "くわしい設定", new Vector2(260f, 56f), () => onSettings?.Invoke(), new Color(0.25f, 0.35f, 0.4f, 0.95f), 22);
+            view.m_HeadButton = UiKit.Button(opts, "", new Vector2(640f, 56f), () => { settings.Role = settings.Role == PlayerRole.Head ? PlayerRole.Attacker : PlayerRole.Head; view.Refresh(); }, new Color(0.3f, 0.3f, 0.4f, 0.95f), 18);
+            view.m_SideButton = UiKit.Button(opts, "", new Vector2(360f, 56f), () => { settings.PlayerIsRed = !settings.PlayerIsRed; view.Refresh(); }, new Color(0.3f, 0.3f, 0.4f, 0.95f), 18);
+            UiKit.Button(opts, "くわしい設定", new Vector2(240f, 56f), () => onSettings?.Invoke(), new Color(0.25f, 0.35f, 0.4f, 0.95f), 18);
 
             RectTransform foot = UiKit.Rect(root, "Foot", new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 100f), new Vector2(1500f, 90f));
             var fl = foot.gameObject.AddComponent<HorizontalLayoutGroup>();
@@ -78,9 +81,10 @@ namespace CoreSim
             fl.childControlHeight = false;
             fl.childForceExpandWidth = false;
             fl.childAlignment = TextAnchor.MiddleCenter;
-            UiKit.Button(foot, "戻る", new Vector2(240f, 80f), () => onBack?.Invoke(), new Color(0.25f, 0.25f, 0.3f, 0.95f), 28);
-            view.m_Summary = UiKit.Label(UiKit.Rect(foot, "Summary", Vector2.zero, Vector2.zero, Vector2.zero, new Vector2(640f, 80f)), "Text", "", 22, new Color(0.85f, 0.9f, 1f));
-            view.m_StartButton = UiKit.Button(foot, "試合開始", new Vector2(360f, 80f), () => { settings.Save(); onStart?.Invoke(); }, new Color(0.85f, 0.35f, 0.2f, 0.95f), 36);
+            UiKit.Button(foot, "戻る", new Vector2(220f, 80f), () => onBack?.Invoke(), new Color(0.25f, 0.25f, 0.3f, 0.95f), 26);
+            view.m_Summary = UiKit.Label(UiKit.Rect(foot, "Summary", Vector2.zero, Vector2.zero, Vector2.zero, new Vector2(700f, 80f)), "Text", "", 18, new Color(0.85f, 0.9f, 1f));
+            view.m_Summary.horizontalOverflow = HorizontalWrapMode.Wrap;
+            view.m_StartButton = UiKit.Button(foot, "試合開始", new Vector2(340f, 80f), () => { settings.Save(); onStart?.Invoke(); }, new Color(0.85f, 0.35f, 0.2f, 0.95f), 32);
             view.Refresh();
             if (first != null) UiKit.Select(first);
             return view;
@@ -103,9 +107,9 @@ namespace CoreSim
             bool attacker = m_Settings.Role == PlayerRole.Attacker || m_Settings.Role == PlayerRole.Head;
             m_HeadButton.interactable = attacker;
             UiKit.SetButtonLabel(m_HeadButton, attacker
-                ? (m_Settings.Role == PlayerRole.Head ? "ヘッドアタッカーで出る: はい (HP 300 で回復するが復活なし)" : "ヘッドアタッカーで出る: いいえ (HP 60、30 秒で復活)")
+                ? (m_Settings.Role == PlayerRole.Head ? "ヘッドアタッカー: はい (HP 300、回復あり、復活なし)" : "ヘッドアタッカー: いいえ (HP 60、30 秒で復活)")
                 : "ヘッドアタッカーはアタッカーだけ");
-            UiKit.SetButtonLabel(m_SideButton, m_Settings.PlayerIsRed ? "同盟: 赤 (右から攻める)" : "同盟: 青 (左から攻める)");
+            UiKit.SetButtonLabel(m_SideButton, m_Settings.PlayerIsRed ? "同盟: 赤" : "同盟: 青");
             m_Summary.text = $"{(m_Settings.PlayerIsRed ? "赤" : "青")}同盟の{MenuView.RoleName(m_Settings.Role)}として、{m_Settings.RobotsPerSide} 台 (ビルダー {m_Settings.EffectiveBuilders} 台" +
                              $"{(m_Settings.AutosPerSide > 0 || m_Settings.Role == PlayerRole.AutoAttacker ? "、オート 1 台" : "")}) vs {m_Settings.RobotsPerSide} 台";
         }

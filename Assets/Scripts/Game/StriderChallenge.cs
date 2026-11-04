@@ -59,21 +59,22 @@ namespace CoreSim
         private void BuildUi(Transform canvas)
         {
             m_Root = UiKit.Panel(canvas, "StriderHud", new Color(0f, 0f, 0f, 0f), Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
-            RectTransform top = UiKit.Rect(m_Root, "Top", new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(330f, -70f), new Vector2(620f, 110f));
+            RectTransform top = UiKit.Rect(m_Root, "Top", new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(480f, -70f), new Vector2(920f, 110f));
             UiKit.Image(top, "bg", new Color(0f, 0f, 0f, 0.5f), Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
-            m_Status = UiKit.Label(top, "Status", "", 30, Color.white, TextAnchor.UpperLeft);
+            m_Status = UiKit.Label(top, "Status", "", 22, Color.white, TextAnchor.UpperLeft);
             m_Status.rectTransform.offsetMin = new Vector2(16f, 0f);
             m_Status.rectTransform.offsetMax = new Vector2(-16f, -10f);
-            m_Zones = UiKit.Label(top, "Zones", "", 22, new Color(0.9f, 0.95f, 1f), TextAnchor.LowerLeft);
+            m_Zones = UiKit.Label(top, "Zones", "", 18, new Color(0.9f, 0.95f, 1f), TextAnchor.LowerLeft);
             m_Zones.rectTransform.offsetMin = new Vector2(16f, 10f);
             m_Zones.rectTransform.offsetMax = new Vector2(-16f, 0f);
             RectTransform center = UiKit.Rect(m_Root, "Center", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, 160f), new Vector2(1200f, 80f));
-            m_Center = UiKit.Label(center, "Text", "", 40, new Color(1f, 0.85f, 0.4f));
-            RectTransform hint = UiKit.Rect(m_Root, "Hint", new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 60f), new Vector2(1500f, 80f));
+            m_Center = UiKit.Label(center, "Text", "", 32, new Color(1f, 0.85f, 0.4f));
+            RectTransform hint = UiKit.Rect(m_Root, "Hint", new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 60f), new Vector2(1600f, 80f));
             UiKit.Image(hint, "bg", new Color(0f, 0f, 0f, 0.45f), Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
             m_Hint = UiKit.Label(hint, "Text",
                 "Q / W: 腿を前 / 後ろ (対角のペアが逆に動く)   O / P: 膝を曲げる / 伸ばす   矢印: 視点を回す   ホイール: 距離   R: リトライ   Shift+R: 最初から   Esc: メニュー\n" +
-                "パッド: 左スティック上下 = 腿、右スティック上下 = 膝、十字キー = 視点", 20, new Color(0.9f, 0.9f, 0.95f));
+                "パッド: 左スティック上下 = 腿、右スティック上下 = 膝、十字キー = 視点", 15, new Color(0.9f, 0.9f, 0.95f));
+            m_Hint.horizontalOverflow = HorizontalWrapMode.Wrap;
         }
 
         /// <summary>砂利ゾーン: 滑りやすい床と小さな凹凸 (砂利そのものは置かない)。</summary>

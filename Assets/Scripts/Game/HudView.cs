@@ -84,9 +84,9 @@ namespace CoreSim
             hud.m_BuilderHint = UiKit.Label(hint, "Text", "", 30, new Color(1f, 0.85f, 0.4f));
 
             // 上中央の下: 今の目標 (1 行。状況で変わる)
-            RectTransform obj = UiKit.Rect(root, "Objective", new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -192f), new Vector2(1100f, 40f));
+            RectTransform obj = UiKit.Rect(root, "Objective", new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -192f), new Vector2(1400f, 40f));
             UiKit.Image(obj, "bg", new Color(0f, 0f, 0f, 0.4f), Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
-            hud.m_Objective = UiKit.Label(obj, "Text", "", 22, new Color(1f, 0.92f, 0.6f));
+            hud.m_Objective = UiKit.Label(obj, "Text", "", 18, new Color(1f, 0.92f, 0.6f));
 
             // 左中段: CPU のデバッグ表示 (F9)
             RectTransform dbg = UiKit.Rect(root, "BotDebug", new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(20f, 0f), new Vector2(900f, 400f));

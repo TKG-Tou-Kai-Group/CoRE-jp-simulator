@@ -15,34 +15,32 @@ namespace CoreSim
         public static RectTransform CreateIntro(Transform parent, System.Action onAbout, System.Action onClose)
         {
             RectTransform root = UiKit.Panel(parent, "Intro", new Color(0.03f, 0.05f, 0.08f, 0.96f), Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
-            RectTransform title = UiKit.Rect(root, "Title", new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -140f), new Vector2(1500f, 120f));
-            UiKit.Label(title, "Text", "はじめに", 72, Color.white);
+            RectTransform title = UiKit.Rect(root, "Title", new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -110f), new Vector2(1500f, 90f));
+            UiKit.Label(title, "Text", "はじめに", 56, Color.white);
 
-            RectTransform pic = UiKit.Rect(root, "Pic", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(-380f, 20f), new Vector2(760f, 430f));
+            RectTransform pic = UiKit.Rect(root, "Pic", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(-400f, 10f), new Vector2(760f, 430f));
             Picture(pic, "Tutorial/intro_field", new Color(0.2f, 0.3f, 0.45f, 0.9f), "フィールドの絵 (intro_field.png)");
 
-            RectTransform body = UiKit.Rect(root, "Body", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(430f, 20f), new Vector2(820f, 430f));
+            RectTransform body = UiKit.Rect(root, "Body", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(430f, 10f), new Vector2(820f, 480f));
             Text t = UiKit.Label(body, "Text",
                 "CoRE は、自作のロボットで戦うロボット競技会です。\n\n" +
-                "このゲームでは、CoRE のフィールドで\n" +
-                "ディスクを撃ち合うロボット、荷物を運ぶロボット、\n" +
-                "自分で書いたプログラムで動くロボット、\n" +
-                "4 本脚で歩くロボットを動かせます。\n\n" +
-                "操作は矢印 (左スティック) で移動、A / D (右スティック) で旋回、\n" +
-                "Space (RB) で発射。まずは好きなものを 1 つ選んで遊んでみてください。",
-                30, Color.white, TextAnchor.UpperLeft, false);
+                "このゲームでは CoRE のフィールドで、ディスクを撃ち合うロボット、荷物を運ぶロボット、" +
+                "自分で書いたプログラムで動くロボット、4 本脚で歩くロボットを動かせます。\n\n" +
+                "操作は矢印 (左スティック) で移動、A / D (右スティック) で旋回、Space (RB) で発射です。\n\n" +
+                "まずは好きなものを 1 つ選んで遊んでみてください。",
+                22, Color.white, TextAnchor.UpperLeft, false);
             t.horizontalOverflow = HorizontalWrapMode.Wrap;
-            t.lineSpacing = 1.15f;
+            t.lineSpacing = 1.2f;
 
-            RectTransform foot = UiKit.Rect(root, "Foot", new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 110f), new Vector2(1500f, 100f));
+            RectTransform foot = UiKit.Rect(root, "Foot", new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 100f), new Vector2(1500f, 100f));
             var layout = foot.gameObject.AddComponent<HorizontalLayoutGroup>();
             layout.spacing = 30f;
             layout.childControlWidth = false;
             layout.childControlHeight = false;
             layout.childForceExpandWidth = false;
             layout.childAlignment = TextAnchor.MiddleCenter;
-            UiKit.Button(foot, "CoRE について詳しく", new Vector2(460f, 90f), () => onAbout?.Invoke(), new Color(0.25f, 0.35f, 0.5f, 0.95f), 32);
-            Button start = UiKit.Button(foot, "はじめる", new Vector2(460f, 90f), () => onClose?.Invoke(), new Color(0.85f, 0.35f, 0.2f, 0.95f), 40);
+            UiKit.Button(foot, "CoRE について詳しく", new Vector2(460f, 90f), () => onAbout?.Invoke(), new Color(0.25f, 0.35f, 0.5f, 0.95f), 28);
+            Button start = UiKit.Button(foot, "はじめる", new Vector2(460f, 90f), () => onClose?.Invoke(), new Color(0.85f, 0.35f, 0.2f, 0.95f), 34);
             UiKit.Select(start);
             return root;
         }
@@ -52,7 +50,7 @@ namespace CoreSim
         {
             RectTransform root = UiKit.Panel(parent, "AboutCore", new Color(0.03f, 0.05f, 0.08f, 0.96f), Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
             RectTransform title = UiKit.Rect(root, "Title", new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -90f), new Vector2(1500f, 90f));
-            UiKit.Label(title, "Text", "CoRE (Championship of Robotics Engineers) について", 48, Color.white);
+            UiKit.Label(title, "Text", "CoRE (Championship of Robotics Engineers) について", 40, Color.white);
 
             RectTransform body = UiKit.ScrollView(root, "Body", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(-300f, 0f), new Vector2(1060f, 640f),
                                                   new Color(0f, 0f, 0f, 0.5f), new RectOffset(28, 28, 20, 20), 0f, controlChildSize: true);
@@ -71,16 +69,16 @@ namespace CoreSim
                 "ヒーリング・ピットインなど) に使います。\n\n" +
                 "このゲームは CoRE-1 ルールブック V27.1.3 (2027 シーズン) を元にしています。実際の大会の情報、ルールブック、\n" +
                 "参加の方法は公式サイトを見てください (右の QR コード)。",
-                24, Color.white, TextAnchor.UpperLeft, false);
+                19, Color.white, TextAnchor.UpperLeft, false);
             t.horizontalOverflow = HorizontalWrapMode.Wrap;
-            t.lineSpacing = 1.15f;
+            t.lineSpacing = 1.2f;
 
             RectTransform side = UiKit.Rect(root, "Side", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(520f, 0f), new Vector2(500f, 640f));
             UiKit.Image(side, "bg", new Color(1f, 1f, 1f, 0.95f), Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
             RectTransform qr = UiKit.Rect(side, "Qr", new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -230f), new Vector2(400f, 400f));
             Picture(qr, "Tutorial/core_qr", Color.white, "QR");
             RectTransform url = UiKit.Rect(side, "Url", new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 110f), new Vector2(480f, 120f));
-            Text u = UiKit.Label(url, "Text", "公式サイト\n" + CoreUrl, 24, new Color(0.1f, 0.1f, 0.15f), TextAnchor.MiddleCenter, false);
+            Text u = UiKit.Label(url, "Text", "公式サイト\n" + CoreUrl, 19, new Color(0.1f, 0.1f, 0.15f), TextAnchor.MiddleCenter, false);
             u.horizontalOverflow = HorizontalWrapMode.Wrap;
 
             RectTransform foot = UiKit.Rect(root, "Foot", new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 60f), new Vector2(600f, 80f));
@@ -108,7 +106,8 @@ namespace CoreSim
                 return;
             }
             UiKit.Image(parent, "fallback", fallback, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
-            UiKit.Label(parent, "Caption", caption, 22, new Color(1f, 1f, 1f, 0.7f));
+            Text c = UiKit.Label(parent, "Caption", caption, 18, new Color(1f, 1f, 1f, 0.7f));
+            c.horizontalOverflow = HorizontalWrapMode.Wrap;
         }
     }
 }

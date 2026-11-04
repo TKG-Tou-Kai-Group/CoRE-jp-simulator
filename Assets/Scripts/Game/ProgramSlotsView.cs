@@ -23,9 +23,10 @@ namespace CoreSim
             view.m_OnLoaded = onLoaded;
 
             RectTransform title = UiKit.Rect(root, "Title", new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -50f), new Vector2(1500f, 60f));
-            UiKit.Label(title, "Text", "プログラムの保存と読み込み", 44, Color.white);
-            RectTransform help = UiKit.Rect(root, "Help", new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -110f), new Vector2(1500f, 40f));
-            UiKit.Label(help, "Text", "名前を付けて「ここに保存」。「読み込む」で編集中のプログラムに置き換えます。CPU に持たせるプログラムは設定画面でスロットから選べます。", 20, new Color(0.85f, 0.9f, 1f));
+            UiKit.Label(title, "Text", "プログラムの保存と読み込み", 40, Color.white);
+            RectTransform help = UiKit.Rect(root, "Help", new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -115f), new Vector2(1500f, 60f));
+            Text helpText = UiKit.Label(help, "Text", "名前を付けて「ここに保存」。「読み込む」で編集中のプログラムに置き換えます。CPU に持たせるプログラムは設定画面でスロットから選べます。", 16, new Color(0.85f, 0.9f, 1f));
+            helpText.horizontalOverflow = HorizontalWrapMode.Wrap;
 
             view.m_Content = UiKit.ScrollView(root, "Body", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, -30f), new Vector2(1500f, 640f),
                                               new Color(0f, 0f, 0f, 0.55f), new RectOffset(20, 20, 16, 16), 8f, controlChildSize: false);

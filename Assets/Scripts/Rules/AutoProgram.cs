@@ -318,7 +318,7 @@ namespace CoreSim.Rules
             AutoAction.GoTo => "地点へ移動",
             AutoAction.Hold => "その場で待機して撃つ",
             AutoAction.Retreat => "スタートゾーンへ戻る",
-            _ => "敵に近づいて撃つ (間合い N m)",
+            _ => "近づいて撃つ (間合い N m)",
         };
 
         public static string PointName(AutoPoint p) => p switch
