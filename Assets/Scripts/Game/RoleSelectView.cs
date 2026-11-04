@@ -47,6 +47,7 @@ namespace CoreSim
                 var c = s_Cards[i];
                 RectTransform card = UiKit.Rect(cards, "Card_" + c.name, Vector2.zero, Vector2.zero, Vector2.zero, new Vector2(470f, 560f));
                 view.m_CardBg[i] = UiKit.Image(card, "bg", new Color(0.12f, 0.14f, 0.18f, 0.95f), Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+                UiKit.Round(view.m_CardBg[i]);
                 RectTransform pic = UiKit.Rect(card, "Pic", new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -120f), new Vector2(440f, 220f));
                 OnboardingView.Picture(pic, c.pic, c.color, $"{c.name}の絵 ({c.pic.Substring(9)}.png)");
                 // 文字は 1.25 倍で描かれる。名前 28 → 35 px、説明 16 → 20 px (3 項目、折り返して最大 6 行)

@@ -63,7 +63,7 @@ namespace CoreSim
         {
             m_Root = UiKit.Panel(canvas, "StriderHud", new Color(0f, 0f, 0f, 0f), Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
             RectTransform top = UiKit.Rect(m_Root, "Top", new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(480f, -70f), new Vector2(920f, 110f));
-            UiKit.Image(top, "bg", new Color(0f, 0f, 0f, 0.5f), Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+            UiKit.Round(UiKit.Image(top, "bg", new Color(0f, 0f, 0f, 0.5f), Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero));
             m_Status = UiKit.Label(top, "Status", "", 22, Color.white, TextAnchor.UpperLeft);
             m_Status.rectTransform.offsetMin = new Vector2(16f, 0f);
             m_Status.rectTransform.offsetMax = new Vector2(-16f, -10f);
@@ -72,7 +72,7 @@ namespace CoreSim
             m_Zones.rectTransform.offsetMax = new Vector2(-16f, 0f);
             // 手ほどき (最初の 4 手順。達成したら次へ。ガイド OFF なら出ない)
             RectTransform guide = UiKit.Rect(m_Root, "Guide", new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(480f, -160f), new Vector2(920f, 60f));
-            UiKit.Image(guide, "bg", new Color(0.05f, 0.1f, 0.2f, 0.75f), Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+            UiKit.Round(UiKit.Image(guide, "bg", new Color(0.05f, 0.1f, 0.2f, 0.75f), Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero));
             m_Guide = UiKit.Label(guide, "Text", "", 18, new Color(1f, 0.92f, 0.6f), TextAnchor.MiddleLeft);
             m_Guide.rectTransform.offsetMin = new Vector2(16f, 0f);
             m_Guide.rectTransform.offsetMax = new Vector2(-16f, 0f);
@@ -80,7 +80,7 @@ namespace CoreSim
             RectTransform center = UiKit.Rect(m_Root, "Center", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, 160f), new Vector2(1200f, 80f));
             m_Center = UiKit.Label(center, "Text", "", 32, new Color(1f, 0.85f, 0.4f));
             RectTransform hint = UiKit.Rect(m_Root, "Hint", new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 60f), new Vector2(1600f, 80f));
-            UiKit.Image(hint, "bg", new Color(0f, 0f, 0f, 0.45f), Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+            UiKit.Round(UiKit.Image(hint, "bg", new Color(0f, 0f, 0f, 0.45f), Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero));
             m_Hint = UiKit.Label(hint, "Text",
                 "Q / W: 腿を前 / 後ろ (対角のペアが逆に動く)   O / P: 膝を曲げる / 伸ばす   矢印: 視点を回す   ホイール: 距離   R: リトライ   Shift+R: 最初から   Esc: メニュー\n" +
                 "パッド: 左スティック上下 = 腿、右スティック上下 = 膝、十字キー = 視点", 15, new Color(0.9f, 0.9f, 0.95f));

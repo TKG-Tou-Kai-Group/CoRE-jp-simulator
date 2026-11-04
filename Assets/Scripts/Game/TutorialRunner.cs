@@ -54,7 +54,7 @@ namespace CoreSim
         private void BuildUi(Transform canvas)
         {
             m_Root = UiKit.Rect(canvas, "TutorialPanel", new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -300f), new Vector2(1400f, 150f));
-            UiKit.Image(m_Root, "bg", new Color(0.05f, 0.1f, 0.2f, 0.85f), Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+            UiKit.Round(UiKit.Image(m_Root, "bg", new Color(0.05f, 0.1f, 0.2f, 0.85f), Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero));
             m_Title = UiKit.Label(UiKit.Rect(m_Root, "Title", new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -22f), new Vector2(0f, 34f)), "Text", "", 18, new Color(1f, 0.85f, 0.4f), TextAnchor.MiddleLeft);
             m_Title.rectTransform.offsetMin = new Vector2(20f, m_Title.rectTransform.offsetMin.y);
             m_Text = UiKit.Label(UiKit.Rect(m_Root, "Text", new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -72f), new Vector2(0f, 64f)), "Text", "", 22, Color.white, TextAnchor.UpperLeft);

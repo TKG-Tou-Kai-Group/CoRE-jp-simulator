@@ -126,6 +126,50 @@ namespace CoreSim
             return t;
         }
 
+        // ---- 角丸 (実行時に 1 枚だけ作る 9 スライスのスプライト。ボタンとカードに使う。細いバーと全画面の背景には使わない)
+        public const bool RoundedCorners = true;
+        private static Sprite s_Rounded;
+
+        public static Sprite RoundedSprite
+        {
+            get
+            {
+                if (s_Rounded == null) s_Rounded = MakeRounded(64, 18);
+                return s_Rounded;
+            }
+        }
+
+        private static Sprite MakeRounded(int size, int radius)
+        {
+            var tex = new Texture2D(size, size, TextureFormat.RGBA32, false) { name = "rounded", wrapMode = TextureWrapMode.Clamp, filterMode = FilterMode.Bilinear };
+            var px = new Color32[size * size];
+            for (int y = 0; y < size; y++)
+            {
+                for (int x = 0; x < size; x++)
+                {
+                    // 四隅の円の外側だけ透明にする。縁は 1 px でなめらかに
+                    float cx = x < radius ? radius - 0.5f : x >= size - radius ? size - radius - 0.5f : x + 0.5f;
+                    float cy = y < radius ? radius - 0.5f : y >= size - radius ? size - radius - 0.5f : y + 0.5f;
+                    float d = Mathf.Sqrt((x + 0.5f - cx) * (x + 0.5f - cx) + (y + 0.5f - cy) * (y + 0.5f - cy));
+                    float a = Mathf.Clamp01(radius - d + 0.5f);
+                    px[y * size + x] = new Color32(255, 255, 255, (byte)Mathf.RoundToInt(a * 255f));
+                }
+            }
+            tex.SetPixels32(px);
+            tex.Apply(false, true);
+            float b = radius + 1f;
+            return Sprite.Create(tex, new Rect(0f, 0f, size, size), new Vector2(0.5f, 0.5f), 100f, 0, SpriteMeshType.FullRect, new Vector4(b, b, b, b));
+        }
+
+        /// <summary>画像を角丸にする (カードや板の背景用)。</summary>
+        public static void Round(Image img)
+        {
+            if (!RoundedCorners || img == null) return;
+            img.sprite = RoundedSprite;
+            img.type = Image.Type.Sliced;
+            img.pixelsPerUnitMultiplier = 1f;
+        }
+
         public static Button Button(Transform parent, string label, Vector2 size, System.Action onClick,
                                     Color? color = null, int fontSize = 32)
         {
@@ -135,6 +179,7 @@ namespace CoreSim
             rt.sizeDelta = size;
             var img = go.AddComponent<Image>();
             img.color = color ?? new Color(0.16f, 0.2f, 0.28f, 0.95f);
+            Round(img);
             var btn = go.AddComponent<Button>();
             var colors = btn.colors;
             colors.highlightedColor = new Color(1.1f, 1.1f, 1.1f, 1f);

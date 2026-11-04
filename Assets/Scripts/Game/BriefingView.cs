@@ -43,6 +43,7 @@ namespace CoreSim
 
             RectTransform root = UiKit.Panel(parent, "Briefing", new Color(0f, 0f, 0f, 0.6f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
                                              new Vector2(-760f, -230f), new Vector2(760f, 230f));
+            UiKit.Round(root.GetComponent<Image>());
             var view = root.gameObject.AddComponent<BriefingView>();
             view.m_CloseAt = Time.time + (first ? 6f : 2.5f);
             // 文字は 1.25 倍で描かれる。目標は 22 → 28 px で折り返し最大 5 行

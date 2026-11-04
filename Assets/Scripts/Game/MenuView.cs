@@ -79,7 +79,7 @@ namespace CoreSim
         private static RectTransform Card(RectTransform parent, string name, string pic, Color fallback, string desc)
         {
             RectTransform card = UiKit.Rect(parent, "Card_" + name, Vector2.zero, Vector2.zero, Vector2.zero, new Vector2(450f, 560f));
-            UiKit.Image(card, "bg", new Color(0.1f, 0.12f, 0.16f, 0.95f), Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+            UiKit.Round(UiKit.Image(card, "bg", new Color(0.1f, 0.12f, 0.16f, 0.95f), Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero));
             RectTransform p = UiKit.Rect(card, "Pic", new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -130f), new Vector2(420f, 240f));
             OnboardingView.Picture(p, pic, fallback, $"{name}の絵 ({pic.Substring(9)}.png)");
             // 文字は 1.25 倍で描かれる (UiKit.FontScale)。名前 30 → 38 px、説明 17 → 21 px で 3 行まで

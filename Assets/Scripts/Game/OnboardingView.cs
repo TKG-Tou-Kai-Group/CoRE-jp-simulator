@@ -74,7 +74,7 @@ namespace CoreSim
             t.lineSpacing = 1.2f;
 
             RectTransform side = UiKit.Rect(root, "Side", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(520f, 0f), new Vector2(500f, 640f));
-            UiKit.Image(side, "bg", new Color(1f, 1f, 1f, 0.95f), Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+            UiKit.Round(UiKit.Image(side, "bg", new Color(1f, 1f, 1f, 0.95f), Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero));
             RectTransform qr = UiKit.Rect(side, "Qr", new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -230f), new Vector2(400f, 400f));
             Picture(qr, "Tutorial/core_qr", Color.white, "QR");
             RectTransform url = UiKit.Rect(side, "Url", new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 110f), new Vector2(480f, 120f));

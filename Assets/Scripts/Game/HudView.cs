@@ -89,7 +89,7 @@ namespace CoreSim
 
             // 上中央の下: 今の目標 (1 行。状況で変わる)
             RectTransform obj = UiKit.Rect(root, "Objective", new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -192f), new Vector2(1400f, 40f));
-            UiKit.Image(obj, "bg", new Color(0f, 0f, 0f, 0.4f), Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+            UiKit.Round(UiKit.Image(obj, "bg", new Color(0f, 0f, 0f, 0.4f), Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero));
             hud.m_Objective = UiKit.Label(obj, "Text", "", 18, new Color(1f, 0.92f, 0.6f));
             RectTransform hintRow = UiKit.Rect(root, "HintLine", new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -232f), new Vector2(1400f, 34f));
             hud.m_HintLine = UiKit.Label(hintRow, "Text", "", 16, new Color(0.8f, 0.95f, 1f));
