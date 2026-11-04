@@ -65,6 +65,7 @@ namespace CoreSim
             m_Hint.rectTransform.offsetMin = new Vector2(20f, m_Hint.rectTransform.offsetMin.y);
             m_Hint.rectTransform.offsetMax = new Vector2(-320f, m_Hint.rectTransform.offsetMax.y);
             m_Hint.horizontalOverflow = HorizontalWrapMode.Wrap;
+            m_RouteInfo = UiKit.Label(UiKit.Rect(m_Root, "Route", new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-170f, -22f), new Vector2(320f, 34f)), "Text", "", 16, new Color(1f, 0.9f, 0.5f), TextAnchor.MiddleRight);
 
             m_Buttons = UiKit.Rect(m_Root, "Buttons", new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-150f, 0f), new Vector2(280f, 120f));
             var bl = m_Buttons.gameObject.AddComponent<VerticalLayoutGroup>();
@@ -106,6 +107,8 @@ namespace CoreSim
         private readonly List<GameObject> m_RouteMarkers = new List<GameObject>();
         private int m_RouteIndex;
         private float m_ReachWithin = 1.3f;
+        private LineRenderer m_RouteLine;     // 道そのものを床の上の線で示す (一人称では先の印が構造物に隠れるため)
+        private Text m_RouteInfo;             // 「次の印まで N m ↑」
 
         private void StartRoute(Vector3 destination, float reachWithin = 1.3f, bool allowSupply = false)
         {
@@ -140,16 +143,43 @@ namespace CoreSim
             if (m_Route.Count == 0 || Vector3.Distance(m_Route[m_Route.Count - 1], dest) > 1.5f) m_Route.Add(dest);
             m_RouteIndex = 0;
             for (int i = 0; i < m_Route.Count; i++) m_RouteMarkers.Add(MakeMarker(m_Route[i], i == 0, i == m_Route.Count - 1));
+            RedrawRouteLine();
+        }
+
+        private void RedrawRouteLine()
+        {
+            if (m_RouteLine == null)
+            {
+                var go = new GameObject("TutorialRouteLine");
+                m_RouteLine = go.AddComponent<LineRenderer>();
+                m_RouteLine.useWorldSpace = true;
+                m_RouteLine.widthMultiplier = 0.16f;
+                m_RouteLine.sharedMaterial = MaterialLibrary.Unlit(new Color(1f, 0.85f, 0.2f));
+                m_RouteLine.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                m_RouteLine.receiveShadows = false;
+            }
+            int n = m_Route.Count - m_RouteIndex;
+            if (n <= 0) { m_RouteLine.positionCount = 0; return; }
+            m_RouteLine.positionCount = n + 1;
+            Vector3 p0 = m_Self.transform.position;
+            m_RouteLine.SetPosition(0, new Vector3(p0.x, 0.12f, p0.z));
+            for (int i = 0; i < n; i++)
+            {
+                Vector3 p = m_Route[m_RouteIndex + i];
+                m_RouteLine.SetPosition(i + 1, new Vector3(p.x, 0.12f, p.z));
+            }
         }
 
         private GameObject MakeMarker(Vector3 at, bool current, bool goal)
         {
+            // 一人称 (カメラの高さ 0.3 m) から 5〜10 m 先でも見えるよう、どの印も背を高くし、今の印は太く明るくする
             var go = new GameObject("TutorialMarker");
-            Material mat = MaterialLibrary.Unlit(current ? new Color(1f, 0.85f, 0.2f) : new Color(1f, 0.85f, 0.2f, 0.45f));
-            float size = current || goal ? 1.2f : 0.8f;
+            Material mat = MaterialLibrary.Unlit(current ? new Color(1f, 0.85f, 0.2f) : new Color(0.85f, 0.7f, 0.2f));
+            float size = current || goal ? 1.2f : 0.9f;
             Visuals.Create("ring", PrimitiveType.Cylinder, go.transform, new Vector3(at.x, 0.02f, at.z), Quaternion.identity, new Vector3(size, 0.01f, size), mat);
-            Visuals.Create("post", PrimitiveType.Cylinder, go.transform, new Vector3(at.x, current ? 1.2f : 0.6f, at.z), Quaternion.identity, new Vector3(0.06f, current ? 1.2f : 0.6f, 0.06f), mat);
-            if (current || goal) Visuals.Create("flag", PrimitiveType.Cube, go.transform, new Vector3(at.x, current ? 2.4f : 1.3f, at.z), Quaternion.identity, new Vector3(0.5f, 0.3f, 0.05f), mat);
+            Visuals.Create("post", PrimitiveType.Cylinder, go.transform, new Vector3(at.x, 1.4f, at.z), Quaternion.identity, new Vector3(current ? 0.12f : 0.06f, 1.4f, current ? 0.12f : 0.06f), mat);
+            Visuals.Create("flag", PrimitiveType.Cube, go.transform, new Vector3(at.x, 2.9f, at.z), Quaternion.identity,
+                           current || goal ? new Vector3(0.7f, 0.4f, 0.07f) : new Vector3(0.4f, 0.25f, 0.05f), mat);
             return go;
         }
 
@@ -159,16 +189,25 @@ namespace CoreSim
             m_RouteMarkers.Clear();
             m_Route.Clear();
             m_RouteIndex = 0;
+            if (m_RouteLine != null) m_RouteLine.positionCount = 0;
+            if (m_RouteInfo != null) m_RouteInfo.text = "";
         }
 
         private bool RouteDone => m_Route.Count > 0 && m_RouteIndex >= m_Route.Count;
 
-        /// <summary>今の印に着いたら消して次の印を目立たせる。</summary>
+        /// <summary>今の印に着いたら消して次の印を目立たせる。線と「次の印まで N m」も更新する。</summary>
         private void UpdateRoute()
         {
             if (m_RouteIndex >= m_Route.Count) return;
             Vector3 d = m_Route[m_RouteIndex] - m_Self.transform.position;
             d.y = 0f;
+            RedrawRouteLine();
+            if (m_RouteInfo != null)
+            {
+                float ang = Vector3.SignedAngle(m_Self.transform.forward, d, Vector3.up);
+                string dir = Mathf.Abs(ang) < 20f ? "↑ 正面" : ang > 0f ? (ang > 110f ? "↓ 右後ろ" : "→ 右") : (ang < -110f ? "↓ 左後ろ" : "← 左");
+                m_RouteInfo.text = $"次の印まで {d.magnitude:F0} m  {dir}   (残り {m_Route.Count - m_RouteIndex} 個)";
+            }
             if (d.magnitude > m_ReachWithin) return;
             if (m_RouteMarkers[m_RouteIndex] != null) Destroy(m_RouteMarkers[m_RouteIndex]);
             m_RouteMarkers[m_RouteIndex] = null;
@@ -441,6 +480,7 @@ namespace CoreSim
         private void OnDestroy()
         {
             ClearRoute();
+            if (m_RouteLine != null) Destroy(m_RouteLine.gameObject);
             if (m_Root != null) Destroy(m_Root.gameObject);
         }
     }
