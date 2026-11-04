@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using CoreSim.Rules;
 using UnityEngine;
+using UnityEngine.AI;
 using UnityEngine.UI;
 
 namespace CoreSim
@@ -98,28 +99,86 @@ namespace CoreSim
         private Field2027Data Field => ArenaBuilder.Field2027;
         private PropRegistry Props => Field?.Props;
 
-        private void SetMarker(Vector3 at)
+        // ------------------------------------------------------------------ 黄色い印での誘導
+        // 目的地までの道を NavMesh で引き、角と 5 m ごとの中継点に印を立てる。手前の印から順に消していく
+
+        private readonly List<Vector3> m_Route = new List<Vector3>();
+        private readonly List<GameObject> m_RouteMarkers = new List<GameObject>();
+        private int m_RouteIndex;
+        private float m_ReachWithin = 1.3f;
+
+        private void StartRoute(Vector3 destination, float reachWithin = 1.3f, bool allowSupply = false)
         {
-            ClearMarker();
-            m_Marker = new GameObject("TutorialMarker");
-            Material mat = MaterialLibrary.Unlit(new Color(1f, 0.85f, 0.2f));
-            Visuals.Create("ring", PrimitiveType.Cylinder, m_Marker.transform, new Vector3(at.x, 0.02f, at.z), Quaternion.identity, new Vector3(1.2f, 0.01f, 1.2f), mat);
-            Visuals.Create("post", PrimitiveType.Cylinder, m_Marker.transform, new Vector3(at.x, 1.2f, at.z), Quaternion.identity, new Vector3(0.06f, 1.2f, 0.06f), mat);
-            Visuals.Create("flag", PrimitiveType.Cube, m_Marker.transform, new Vector3(at.x, 2.4f, at.z), Quaternion.identity, new Vector3(0.5f, 0.3f, 0.05f), mat);
+            ClearRoute();
+            m_ReachWithin = reachWithin;
+            Vector3 from = m_Self.transform.position;
+            int mask = allowSupply ? NavMesh.AllAreas : NavMesh.AllAreas & ~(1 << NavigationBuilder.SupplyArea);
+            var path = new NavMeshPath();
+            bool ok = NavMesh.SamplePosition(from, out NavMeshHit a, 2f, NavMesh.AllAreas) &&
+                      NavMesh.SamplePosition(destination, out NavMeshHit b, 2.5f, mask) &&
+                      NavMesh.CalculatePath(a.position, b.position, mask, path) && path.corners.Length >= 2;
+            Vector3 prev = from;
+            if (ok)
+            {
+                for (int i = 1; i < path.corners.Length; i++)
+                {
+                    Vector3 c = path.corners[i];
+                    float d = Vector3.Distance(prev, c);
+                    // 長い直線は 5 m ごとに区切る (次の印が見える距離に)
+                    int pieces = Mathf.Max(1, Mathf.CeilToInt(d / 5f));
+                    for (int k = 1; k <= pieces; k++)
+                    {
+                        Vector3 pnt = Vector3.Lerp(prev, c, (float)k / pieces);
+                        if (i == path.corners.Length - 1 && k == pieces) break;   // 最後は目的地そのもの
+                        if (Vector3.Distance(pnt, m_Route.Count > 0 ? m_Route[m_Route.Count - 1] : from) > 1.5f) m_Route.Add(pnt);
+                    }
+                    prev = c;
+                }
+            }
+            Vector3 dest = destination;
+            dest.y = 0f;
+            if (m_Route.Count == 0 || Vector3.Distance(m_Route[m_Route.Count - 1], dest) > 1.5f) m_Route.Add(dest);
+            m_RouteIndex = 0;
+            for (int i = 0; i < m_Route.Count; i++) m_RouteMarkers.Add(MakeMarker(m_Route[i], i == 0, i == m_Route.Count - 1));
         }
 
-        private void ClearMarker()
+        private GameObject MakeMarker(Vector3 at, bool current, bool goal)
         {
-            if (m_Marker != null) Destroy(m_Marker);
-            m_Marker = null;
+            var go = new GameObject("TutorialMarker");
+            Material mat = MaterialLibrary.Unlit(current ? new Color(1f, 0.85f, 0.2f) : new Color(1f, 0.85f, 0.2f, 0.45f));
+            float size = current || goal ? 1.2f : 0.8f;
+            Visuals.Create("ring", PrimitiveType.Cylinder, go.transform, new Vector3(at.x, 0.02f, at.z), Quaternion.identity, new Vector3(size, 0.01f, size), mat);
+            Visuals.Create("post", PrimitiveType.Cylinder, go.transform, new Vector3(at.x, current ? 1.2f : 0.6f, at.z), Quaternion.identity, new Vector3(0.06f, current ? 1.2f : 0.6f, 0.06f), mat);
+            if (current || goal) Visuals.Create("flag", PrimitiveType.Cube, go.transform, new Vector3(at.x, current ? 2.4f : 1.3f, at.z), Quaternion.identity, new Vector3(0.5f, 0.3f, 0.05f), mat);
+            return go;
         }
 
-        private bool NearMarker(float within)
+        private void ClearRoute()
         {
-            if (m_Marker == null) return false;
-            Vector3 d = m_Marker.transform.GetChild(0).position - m_Self.transform.position;
+            foreach (GameObject g in m_RouteMarkers) if (g != null) Destroy(g);
+            m_RouteMarkers.Clear();
+            m_Route.Clear();
+            m_RouteIndex = 0;
+        }
+
+        private bool RouteDone => m_Route.Count > 0 && m_RouteIndex >= m_Route.Count;
+
+        /// <summary>今の印に着いたら消して次の印を目立たせる。</summary>
+        private void UpdateRoute()
+        {
+            if (m_RouteIndex >= m_Route.Count) return;
+            Vector3 d = m_Route[m_RouteIndex] - m_Self.transform.position;
             d.y = 0f;
-            return d.magnitude < within;
+            if (d.magnitude > m_ReachWithin) return;
+            if (m_RouteMarkers[m_RouteIndex] != null) Destroy(m_RouteMarkers[m_RouteIndex]);
+            m_RouteMarkers[m_RouteIndex] = null;
+            m_RouteIndex++;
+            if (m_RouteIndex < m_Route.Count)
+            {
+                if (m_RouteMarkers[m_RouteIndex] != null) Destroy(m_RouteMarkers[m_RouteIndex]);
+                m_RouteMarkers[m_RouteIndex] = MakeMarker(m_Route[m_RouteIndex], true, m_RouteIndex == m_Route.Count - 1);
+                GameDirector.Instance?.Audio.PlayClick();
+            }
         }
 
         /// <summary>機体を別の場所へ置き直す (遠い場所の手順のため)。</summary>
@@ -159,25 +218,24 @@ namespace CoreSim
 
         private void DefineAttacker()
         {
-            // 北側の空き地で始める (スタートゾーンは構造物に近く、印が見えにくい)
-            Vector3 start = new Vector3(-4.5f, 0f, 3.5f);
-            Teleport(m_Self, start, Vector3.right);
-            if (m_Target != null) Teleport(m_Target, new Vector3(2.5f, 0f, 3.5f), Vector3.left);
+            // スタートゾーンから始め、黄色い印をたどって相手の見える場所へ。戻るときも印をたどる (瞬間移動はしない)
+            float sign = MySide == Side.Red ? 1f : -1f;
+            Vector3 engage = new Vector3(-4.5f * sign, 0f, 3.5f * sign);
+            if (m_Target != null) Teleport(m_Target, new Vector3(2.5f * sign, 0f, 3.5f * sign), new Vector3(-sign, 0f, 0f));
             TournamentRobot target = m_Target != null ? Round?.Find(m_Target.Index) : null;
             int hitsAtStart = target != null ? target.HitsTaken : 0;
 
             m_Steps.Add(new Step
             {
-                Text = "矢印キー (パッドは左スティック) で前に進み、黄色い印まで行く",
-                Hint = "後ろは下矢印、横移動は左右の矢印。Shift (LB) でターボ",
-                Enter = () => SetMarker(start + Vector3.right * 4f),
-                Done = () => NearMarker(1.3f),
+                Text = "矢印キー (パッドは左スティック) で、黄色い印を順にたどって相手の見える場所まで進む",
+                Hint = "後ろは下矢印、横移動は左右の矢印。Shift (LB) でターボ。印に着くと次の印が明るくなる",
+                Enter = () => StartRoute(engage),
+                Done = () => RouteDone,
             });
             m_Steps.Add(new Step
             {
                 Text = "A / D (パッドは右スティック) で旋回し、相手の機体 (青) を画面の中央に捉える",
-                Hint = "視点は機体のカメラだけ。相手は 7 m ほど先に止まっている",
-                Enter = ClearMarker,
+                Hint = "視点は機体のカメラだけ。相手は 7 m ほど先に止まっている。見失ったら V の地図で確かめる",
                 Done = () => m_Target != null && Bearing(m_Target.transform.position) < 8f,
             });
             m_Steps.Add(new Step
@@ -208,37 +266,35 @@ namespace CoreSim
             });
             m_Steps.Add(new Step
             {
-                Text = "自同盟の補給エリア (スタートゾーンの外側の囲い) に入る。入ると 20 秒止まって装填される",
-                Hint = "補給エリアの近くまで移動した。黄色い印の先が補給エリア",
-                Enter = () =>
-                {
-                    Vector3 supply = Field.SupplyPoint(MySideName);
-                    Vector3 approach = supply + (Field.Spawn(MySideName, 0).position - supply).normalized * 3.5f;
-                    Teleport(m_Self, approach, supply - approach);
-                    SetMarker(supply);
-                },
+                Text = "黄色い印をたどってスタートゾーンへ戻り、その外側の補給エリア (囲い) に入る。入ると 20 秒止まって装填される",
+                Hint = "ピットインなしで入ると反則 (-50VP)。相手の補給エリアに入っても反則",
+                Enter = () => StartRoute(Field.SupplyPoint(MySideName), 1.3f, allowSupply: true),
                 Done = () => Me != null && Round != null && Me.IsFrozen(Round.Time),
             });
             m_Steps.Add(new Step
             {
                 Text = "装填中 (20 秒)。終わるまで待つ",
-                Hint = "ピットインなしで補給エリアに入ると反則 (-50VP)。相手の補給エリアに入っても反則",
-                Enter = ClearMarker,
+                Hint = "試合では補給の間も時間が進む。弾が尽きる前に戻るか、尽きてから戻るかは作戦次第",
+                Enter = ClearRoute,
                 Done = () => Me != null && Round != null && !Me.IsFrozen(Round.Time),
                 MinSeconds = 1f,
             });
             m_Steps.Add(new Step
             {
-                Text = "相手の陣地は開始 3 分後から撃てる (ここでは時間を進めた)。陣地の低い位置の板に 1 発当てる",
-                Hint = "陣地の前へ移動した。陣地の HP は 200。撃破すると +100VP +100RP",
+                Text = "相手の陣地は開始 3 分後から撃てる (ここでは時間を進めた)。黄色い印をたどって相手の陣地の前まで行く",
+                Hint = "陣地はフィールドの反対側の角。途中の進入禁止ゾーン (赤い帯) には入らないように印が引いてある",
                 Enter = () =>
                 {
                     Round?.AdvanceTimeForTutorial(Mathf.Max(0f, m_Director.Tournament.Config.BaseImmuneSeconds + 1f - Round.Time));
                     string enemySide = TournamentController.SideName(TournamentRound.Opposite(MySide));
-                    Vector3 front = BaseFront(enemySide, 5f);
-                    Vector3 target2 = BaseFront(enemySide, 0f);
-                    Teleport(m_Self, front, target2 - front);
+                    StartRoute(BaseFront(enemySide, 5f), 1.8f);
                 },
+                Done = () => RouteDone,
+            });
+            m_Steps.Add(new Step
+            {
+                Text = "相手の陣地の低い位置の板に 1 発当てる",
+                Hint = "陣地の HP は 200。撃破すると +100VP +100RP。高い板は当てても減りが少ない",
                 Done = () => Enemy != null && Enemy.BaseHp < m_Director.Tournament.Config.BaseHp,
             });
             m_Steps.Add(new Step
@@ -260,70 +316,74 @@ namespace CoreSim
 
         private void DefineBuilder()
         {
-            FieldProp containerA = null;
-            FieldProp block = null;
+            System.Func<FieldProp> nextContainer = () => NearestProp(p => p.Kind == PropKind.Container && p.Origin == ContainerOrigin.HolderA && p.HomeSide == MySideName && p.AtHome);
+            System.Func<FieldProp> nextBlock = () => NearestProp(p => p.Kind == PropKind.Block && p.HomeSide == MySideName && p.AtHome && p.Slot == null);
+            System.Func<PropSlot> spot1 = () => Props.Slot(PlaceKind.Spot, MySideName, 1);
+            System.Func<PropSlot> site1 = () => Props.Slot(PlaceKind.Site, MySideName, 1);
+            bool heldContainer() => m_Self.Lift != null && m_Self.Lift.Held != null && m_Self.Lift.Held.Kind == PropKind.Container;
+            bool heldBlock() => m_Self.Lift != null && m_Self.Lift.Held != null && m_Self.Lift.Held.Kind == PropKind.Block;
+
             m_Steps.Add(new Step
             {
-                Text = "矢印キー (左スティック) で、黄色い印 (置き場 A のコンテナ) の前まで行く",
-                Hint = "置き場 A は自陣地の横の棚。ハンドは機体の前 0.6 m にある",
-                Enter = () =>
-                {
-                    containerA = NearestProp(p => p.Kind == PropKind.Container && p.Origin == ContainerOrigin.HolderA && p.HomeSide == MySideName && p.AtHome);
-                    if (containerA != null) SetMarker(containerA.transform.position);
-                },
-                Done = () => NearMarker(1.6f),
+                Text = "矢印キー (左スティック) で、黄色い印をたどって置き場 A のコンテナの前まで行く",
+                Hint = "置き場 A は自陣地の横の棚。印に着くと次の印が明るくなる",
+                Enter = () => { FieldProp c = nextContainer(); if (c != null) StartRoute(c.transform.position, 1.6f); },
+                Done = () => RouteDone,
             });
             m_Steps.Add(new Step
             {
                 Text = "ハンドの爪の間にコンテナを入れ、画面下の案内が「…をつかむ」になったら Space (RB) でつかむ",
-                Hint = "高さが合わないときは R / F (十字キー上下) でハンドを上下させる",
-                Enter = ClearMarker,
-                Done = () => m_Self.Lift != null && m_Self.Lift.Held != null && m_Self.Lift.Held.Kind == PropKind.Container,
+                Hint = "高さが合わないときは R / F (十字キー上下) でハンドを上下させる。ハンドは機体の前 0.6 m",
+                Enter = ClearRoute,
+                Done = heldContainer,
             });
             m_Steps.Add(new Step
             {
-                Text = "スポット (6 列 × 3 段の棚) の 1 段目に置く。黄色い印の前で高さを合わせ、案内が「…に置く」になったら Space",
+                Text = "黄色い印をたどってスポット (6 列 × 3 段の棚) へ。1 段目の前で高さを合わせ、案内が「…に置く」になったら Space",
                 Hint = "置くと +10VP +30RP。1 つの段に 4 個並ぶとさらに +50VP +100RP",
-                Enter = () =>
-                {
-                    PropSlot spot = Props.Slot(PlaceKind.Spot, MySideName, 1);
-                    if (spot != null) SetMarker(spot.Position);
-                },
+                Enter = () => { PropSlot sp = spot1(); if (sp != null) StartRoute(sp.Position, 1.6f); },
                 Done = () => Mine != null && Mine.Containers >= 1,
             });
             m_Steps.Add(new Step
             {
-                Text = "もう 1 個コンテナを運んで、同じ段の隣に置く",
+                Text = "もう 1 個。印をたどって置き場 A へ戻り、コンテナをつかむ",
                 Hint = "相手の置き場のコンテナや、置いてあるコンテナを取ると反則 (-50VP)。案内に「反則」と出たらやめる",
-                Enter = ClearMarker,
+                Enter = () => { FieldProp c = nextContainer(); if (c != null) StartRoute(c.transform.position, 1.6f); },
+                Done = heldContainer,
+            });
+            m_Steps.Add(new Step
+            {
+                Text = "スポットへ運び、同じ段の隣に置く",
+                Hint = "置き場所は自動で揃う。案内に「…に置く」と出る位置で Space",
+                Enter = () => { PropSlot sp = spot1(); if (sp != null) StartRoute(sp.Position, 1.6f); },
                 Done = () => Mine != null && Mine.Containers >= 2,
             });
             m_Steps.Add(new Step
             {
-                Text = "ブロックゾーン (黄色い印) のブロックをつかむ。ハンドは一番下まで下げる",
+                Text = "印をたどってブロックゾーンへ行き、ブロックをつかむ。ハンドは一番下まで下げる",
                 Hint = "ブロックは 300 × 300 × 200 mm。ビルダーだけが持てる",
-                Enter = () =>
-                {
-                    block = NearestProp(p => p.Kind == PropKind.Block && p.HomeSide == MySideName && p.AtHome && p.Slot == null);
-                    if (block != null) SetMarker(block.transform.position);
-                },
-                Done = () => m_Self.Lift != null && m_Self.Lift.Held != null && m_Self.Lift.Held.Kind == PropKind.Block,
+                Enter = () => { FieldProp b = nextBlock(); if (b != null) StartRoute(b.transform.position, 1.6f); },
+                Done = heldBlock,
             });
             m_Steps.Add(new Step
             {
-                Text = "ビルドサイト 1 (黄色い印) に置く。置き場の正面で高さを合わせ、案内が「…に置く」になったら Space",
+                Text = "印をたどってビルドサイト 1 へ。置き場の正面で高さを合わせ、案内が「…に置く」になったら Space",
                 Hint = "ビルドサイトは自陣地のそばに 4 つ。サイトから取り出すと反則",
-                Enter = () =>
-                {
-                    PropSlot site = Props.Slot(PlaceKind.Site, MySideName, 1);
-                    if (site != null) SetMarker(site.Position);
-                },
-                Done = () => { PropSlot site = Props.Slot(PlaceKind.Site, MySideName, 1); return site != null && site.Count >= 1; },
+                Enter = () => { PropSlot st = site1(); if (st != null) StartRoute(st.Position, 1.6f); },
+                Done = () => { PropSlot st = site1(); return st != null && st.Count >= 1; },
             });
             m_Steps.Add(new Step
             {
-                Text = "もう 1 個ブロックを運んで、同じサイトに積む。2 個でサイト 1 を獲得する",
-                Hint = "サイト 1: 自分の防御 2 倍、2: 陣地の防御 1.5 倍、3 / 4: 置き場 B / C のコンテナが使える",
+                Text = "もう 1 個。印をたどってブロックゾーンへ戻り、ブロックをつかむ",
+                Hint = "2 個積むとサイトを獲得。サイト 1: 自分の防御 2 倍、2: 陣地の防御 1.5 倍、3 / 4: 置き場 B / C が使える",
+                Enter = () => { FieldProp b = nextBlock(); if (b != null) StartRoute(b.transform.position, 1.6f); },
+                Done = heldBlock,
+            });
+            m_Steps.Add(new Step
+            {
+                Text = "ビルドサイト 1 へ運んで、上に積む",
+                Hint = "獲得すると HUD のサイトの印が ■ になる",
+                Enter = () => { PropSlot st = site1(); if (st != null) StartRoute(st.Position, 1.6f); },
                 Done = () => Mine != null && Mine.SiteAcquired(1),
             });
         }
@@ -332,7 +392,7 @@ namespace CoreSim
 
         private void Advance()
         {
-            ClearMarker();
+            ClearRoute();
             m_Index++;
             if (m_Index >= m_Steps.Count)
             {
@@ -365,6 +425,7 @@ namespace CoreSim
         {
             if (m_Finished || m_Index < 0 || m_Index >= m_Steps.Count) return;
             if (!m_Director.RobotsMayMove) return;
+            UpdateRoute();
             Step s = m_Steps[m_Index];
             if (Time.time - m_EnteredAt < s.MinSeconds) return;
             bool done = false;
@@ -379,7 +440,7 @@ namespace CoreSim
 
         private void OnDestroy()
         {
-            ClearMarker();
+            ClearRoute();
             if (m_Root != null) Destroy(m_Root.gameObject);
         }
     }
