@@ -26,7 +26,7 @@ namespace CoreSim
                 "CoRE は、自作のロボットで戦うロボット競技会です。\n\n" +
                 "このゲームでは CoRE のフィールドで、ディスクを撃ち合うロボット、荷物を運ぶロボット、" +
                 "自分で書いたプログラムで動くロボット、4 本脚で歩くロボットを動かせます。\n\n" +
-                "操作は矢印 (左スティック) で移動、A / D (右スティック) で旋回、Space (RB) で発射です。\n\n" +
+                "操作は矢印 (左スティック) で移動、A / D (右スティック) で旋回、Space (R1) で発射です。\n\n" +
                 "まずは好きなものを 1 つ選んで遊んでみてください。",
                 22, Color.white, TextAnchor.UpperLeft, false);
             t.horizontalOverflow = HorizontalWrapMode.Wrap;

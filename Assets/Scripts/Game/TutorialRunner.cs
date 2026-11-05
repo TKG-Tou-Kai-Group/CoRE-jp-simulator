@@ -283,7 +283,7 @@ namespace CoreSim
             });
             m_Steps.Add(new Step
             {
-                Text = "Space (RB) で撃つ。相手の装甲板 (機体の四隅の板) に 1 発当てる",
+                Text = "Space (R1) で撃つ。相手の装甲板 (機体の四隅の板) に 1 発当てる",
                 Hint = "装甲板に当たると相手の HP が 10 減る。ほかの場所に当たっても減らない",
                 Done = () => target != null && target.HitsTaken >= hitsAtStart + 1,
             });
@@ -375,7 +375,7 @@ namespace CoreSim
             });
             m_Steps.Add(new Step
             {
-                Text = "ハンドの爪の間にコンテナを入れ、画面下の案内が「…をつかむ」になったら Space (RB) でつかむ",
+                Text = "ハンドの爪の間にコンテナを入れ、画面下の案内が「…をつかむ」になったら Space (R1) でつかむ",
                 Hint = "高さが合わないときは R / F (十字キー上下) でハンドを上下させる。ハンドは機体の前 0.6 m",
                 Enter = ClearRoute,
                 Done = heldContainer,

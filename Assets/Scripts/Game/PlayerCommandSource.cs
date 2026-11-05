@@ -5,16 +5,9 @@ namespace CoreSim
 {
     /// <summary>
     /// 人の入力。キーボード、ゲームパッド、画面上の仮想パッド (Input System の OnScreen 控件
-    /// は仮想 Gamepad として現れる) をまとめて読む。
+    /// は仮想 Gamepad として現れる) をまとめて読む。キーとボタンの割り当ては <see cref="InputBindings.Current"/>
+    /// (設定画面「操作の割り当て」で変えられる)。スティックとスキルの番号キー (1〜9) は固定。
     /// </summary>
-    /// <remarks>
-    /// 割り当ては CoRE-jp-Unity-ROS2-packages の tools/control.html に合わせてある:
-    /// 矢印 = 移動、A/D = 旋回、Space = 射撃、Shift = ターボ、V = 視点、Esc = メニュー。
-    /// それに加えて WASD でも移動できる (W/S 前後、A/D は旋回のまま)。
-    /// ビルダーは Space = つかむ / 放す、R / F (または PageUp / PageDown) = ハンドの上げ下げ。
-    /// ゲームパッドは左スティック = 移動、右スティック = 旋回、RB/RT = 射撃 (ビルダーはつかむ)、
-    /// LB = ターボ、Y = 視点、Start = メニュー、右スティック上下と十字キー上下 = ハンドの上げ下げ。
-    /// </remarks>
     public sealed class PlayerCommandSource : ICommandSource
     {
         /// <summary>0 = キーボード + 1 台目 (と仮想パッド)、1 = 2 台目のゲームパッド。</summary>
@@ -25,15 +18,18 @@ namespace CoreSim
         private bool m_PauseHeld;
         private bool m_SkillHeld;
         private bool m_DpadHeld;
-        /// <summary>ゲームパッドの十字キーで選んでいるスキル (0..8)。</summary>
+        /// <summary>ゲームパッドで選んでいるスキル (0..8)。</summary>
         public int SelectedSkill;
+
+        private static InputBindings B => InputBindings.Current;
+        private Keyboard Kb => PlayerIndex == 0 ? Keyboard.current : null;
 
         /// <summary>今フレーム発動を指示されたスキルの番号 (0..8)。無ければ -1。描画フレームごとに 1 回だけ呼ぶこと。</summary>
         public int PollSkill()
         {
             int pressed = -1;
-            Keyboard kb = Keyboard.current;
-            if (kb != null && PlayerIndex == 0)
+            Keyboard kb = Kb;
+            if (kb != null)
             {
                 if (kb.digit1Key.isPressed) pressed = 0;
                 else if (kb.digit2Key.isPressed) pressed = 1;
@@ -45,12 +41,12 @@ namespace CoreSim
                 else if (kb.digit8Key.isPressed) pressed = 7;
                 else if (kb.digit9Key.isPressed) pressed = 8;
             }
-            bool dpad = false, activate = false;
+            bool dpad = false, activate = B.KeyHeld(InputAct.SkillUse, kb);
             foreach (Gamepad pad in MyPads())
             {
-                if (pad.dpad.left.isPressed) { dpad = true; if (!m_DpadHeld) SelectedSkill = (SelectedSkill + 8) % 9; }
-                else if (pad.dpad.right.isPressed) { dpad = true; if (!m_DpadHeld) SelectedSkill = (SelectedSkill + 1) % 9; }
-                activate |= pad.buttonWest.isPressed;
+                if (B.PadHeld(InputAct.SkillPrev, pad)) { dpad = true; if (!m_DpadHeld) SelectedSkill = (SelectedSkill + 8) % 9; }
+                else if (B.PadHeld(InputAct.SkillNext, pad)) { dpad = true; if (!m_DpadHeld) SelectedSkill = (SelectedSkill + 1) % 9; }
+                activate |= B.PadHeld(InputAct.SkillUse, pad);
             }
             m_DpadHeld = dpad;
             if (activate && pressed < 0) pressed = SelectedSkill;
@@ -60,18 +56,15 @@ namespace CoreSim
             return result;
         }
 
-        /// <summary>視点切替ボタンが今フレーム押されたか。描画フレームごとに 1 回だけ呼ぶこと。</summary>
+        /// <summary>視点 (地図) 切替が今フレーム押されたか。描画フレームごとに 1 回だけ呼ぶこと。</summary>
         /// <remarks>
         /// Read() は FixedUpdate から呼ばれ、描画フレームより多く走ることがある。立ち上がりを
         /// そこで作ると Update 側が取りこぼすので、押した瞬間の判定は Update から直接聞く。
         /// </remarks>
         public bool PollToggleView()
         {
-            bool held = Keyboard.current != null && PlayerIndex == 0 && Keyboard.current.vKey.isPressed;
-            foreach (Gamepad pad in MyPads())
-            {
-                held |= pad.buttonNorth.isPressed;
-            }
+            bool held = B.KeyHeld(InputAct.Map, Kb);
+            foreach (Gamepad pad in MyPads()) held |= B.PadHeld(InputAct.Map, pad);
             bool edge = held && !m_ViewHeld;
             m_ViewHeld = held;
             return edge;
@@ -80,18 +73,15 @@ namespace CoreSim
         /// <summary>一時停止 (Esc / Start) が今フレーム押されたか。描画フレームごとに 1 回だけ呼ぶこと。</summary>
         public bool PollPause()
         {
-            bool held = Keyboard.current != null && PlayerIndex == 0 && Keyboard.current.escapeKey.isPressed;
-            foreach (Gamepad pad in MyPads())
-            {
-                held |= pad.startButton.isPressed;
-            }
+            bool held = B.KeyHeld(InputAct.Pause, Kb);
+            foreach (Gamepad pad in MyPads()) held |= B.PadHeld(InputAct.Pause, pad);
             bool edge = held && !m_PauseHeld;
             m_PauseHeld = held;
             return edge;
         }
 
         /// <summary>このプレイヤーが読むゲームパッド。プレイヤー 0 は 2 台目以外すべて (仮想パッドを含む)。</summary>
-        private System.Collections.Generic.IEnumerable<Gamepad> MyPads()
+        public System.Collections.Generic.IEnumerable<Gamepad> MyPads()
         {
             var pads = Gamepad.all;
             for (int i = 0; i < pads.Count; i++)
@@ -112,39 +102,35 @@ namespace CoreSim
         public RobotCommand Read()
         {
             var cmd = new RobotCommand();
-
-            if (PlayerIndex == 0)
+            Keyboard kb = Kb;
+            if (kb != null)
             {
-                Keyboard kb = Keyboard.current;
-                if (kb != null)
-                {
-                    float x = 0f, y = 0f, turn = 0f;
-                    if (kb.upArrowKey.isPressed || kb.wKey.isPressed) y += 1f;
-                    if (kb.downArrowKey.isPressed || kb.sKey.isPressed) y -= 1f;
-                    if (kb.rightArrowKey.isPressed) x += 1f;
-                    if (kb.leftArrowKey.isPressed) x -= 1f;
-                    if (kb.dKey.isPressed || kb.eKey.isPressed) turn += 1f;
-                    if (kb.aKey.isPressed || kb.qKey.isPressed) turn -= 1f;
-                    cmd.Move += new Vector2(x, y);
-                    cmd.Turn += turn;
-                    cmd.Fire |= kb.spaceKey.isPressed || kb.enterKey.isPressed;
-                    cmd.Turbo |= kb.leftShiftKey.isPressed || kb.rightShiftKey.isPressed;
-                    if (kb.rKey.isPressed || kb.pageUpKey.isPressed) cmd.Lift += 1f;
-                    if (kb.fKey.isPressed || kb.pageDownKey.isPressed) cmd.Lift -= 1f;
-                }
+                float x = 0f, y = 0f, turn = 0f;
+                if (B.KeyHeld(InputAct.MoveForward, kb)) y += 1f;
+                if (B.KeyHeld(InputAct.MoveBack, kb)) y -= 1f;
+                if (B.KeyHeld(InputAct.MoveRight, kb)) x += 1f;
+                if (B.KeyHeld(InputAct.MoveLeft, kb)) x -= 1f;
+                if (B.KeyHeld(InputAct.TurnRight, kb)) turn += 1f;
+                if (B.KeyHeld(InputAct.TurnLeft, kb)) turn -= 1f;
+                cmd.Move += new Vector2(x, y);
+                cmd.Turn += turn;
+                cmd.Fire |= B.KeyHeld(InputAct.Fire, kb);
+                cmd.Turbo |= B.KeyHeld(InputAct.Turbo, kb);
+                if (B.KeyHeld(InputAct.LiftUp, kb)) cmd.Lift += 1f;
+                if (B.KeyHeld(InputAct.LiftDown, kb)) cmd.Lift -= 1f;
             }
 
-            // ゲームパッド。プレイヤー 0 は 1 台目以外 (仮想パッドを含む) も足し合わせる。
+            // ゲームパッド。スティックは固定 (左 = 移動、右 = 旋回と、ビルダーのハンド上下)
             foreach (Gamepad pad in MyPads())
             {
                 cmd.Move += ApplyDeadzone(pad.leftStick.ReadValue());
                 Vector2 right = ApplyDeadzone(pad.rightStick.ReadValue());
                 cmd.Turn += right.x;
                 cmd.Lift += right.y;
-                if (pad.dpad.up.isPressed) cmd.Lift += 1f;
-                if (pad.dpad.down.isPressed) cmd.Lift -= 1f;
-                cmd.Fire |= pad.rightShoulder.isPressed || pad.rightTrigger.ReadValue() > 0.5f || pad.buttonSouth.isPressed;
-                cmd.Turbo |= pad.leftShoulder.isPressed || pad.leftTrigger.ReadValue() > 0.5f;
+                if (B.PadHeld(InputAct.LiftUp, pad)) cmd.Lift += 1f;
+                if (B.PadHeld(InputAct.LiftDown, pad)) cmd.Lift -= 1f;
+                cmd.Fire |= B.PadHeld(InputAct.Fire, pad);
+                cmd.Turbo |= B.PadHeld(InputAct.Turbo, pad);
             }
 
             cmd.Move = Vector2.ClampMagnitude(cmd.Move, 1f);

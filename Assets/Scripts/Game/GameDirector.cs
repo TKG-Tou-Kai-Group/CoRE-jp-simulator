@@ -290,7 +290,20 @@ namespace CoreSim
         public void OpenSettings()
         {
             DestroyMenus();
-            m_Settings = SettingsView.Create(m_Canvas.transform, Settings, () => { Settings.Save(); ShowMenu(); }, OpenProgramEditor);
+            m_Settings = SettingsView.Create(m_Canvas.transform, Settings, () => { Settings.Save(); ShowMenu(); }, OpenProgramEditor, OpenKeybinds);
+        }
+
+        private KeybindView m_Keybinds;
+
+        /// <summary>操作の割り当ての画面を今の画面の上に出す。</summary>
+        public void OpenKeybinds()
+        {
+            if (m_Keybinds != null) return;
+            m_Keybinds = KeybindView.Create(m_Canvas.transform, Settings, () =>
+            {
+                if (m_Keybinds != null) Destroy(m_Keybinds.gameObject);
+                m_Keybinds = null;
+            });
         }
 
         private ProgramView m_ProgramView;
@@ -328,6 +341,7 @@ namespace CoreSim
             if (m_Intro != null) { Destroy(m_Intro.gameObject); m_Intro = null; }
             if (m_About != null) { Destroy(m_About.gameObject); m_About = null; }
             if (m_RoleSelect != null) { Destroy(m_RoleSelect.gameObject); m_RoleSelect = null; }
+            if (m_Keybinds != null) { Destroy(m_Keybinds.gameObject); m_Keybinds = null; }
             if (m_NetMenu != null) { Destroy(m_NetMenu.gameObject); m_NetMenu = null; }
             if (m_Settings != null) { Destroy(m_Settings.gameObject); m_Settings = null; }
         }

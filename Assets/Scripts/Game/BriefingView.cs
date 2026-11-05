@@ -22,7 +22,7 @@ namespace CoreSim
             if (self != null && self.IsBuilder)
             {
                 goal = "コンテナを自同盟のスポットへ運ぶと +10VP。ブロックをビルドサイトに 2 個積むと同盟が強くなる。\n相手の置き場やスポットに触ると反則 (-50VP)。画面下の案内を見れば避けられる";
-                keys = "移動: 矢印 / 左スティック   旋回: A D / 右スティック   ハンド: R F / 十字キー上下   つかむ / 放す: Space / RB";
+                keys = "移動: 矢印 / 左スティック   旋回: A D / 右スティック   ハンド: R F / 十字キー上下   つかむ / 放す: Space / R1";
             }
             else if (self != null && self.IsAuto)
             {
@@ -33,12 +33,12 @@ namespace CoreSim
             {
                 goal = (self != null && self.IsHeadAttacker ? "HP 300 で自動回復するが、撃破されると復活しない。無理をしない。\n" : "") +
                        "相手ロボットの装甲板にディスクを当てると HP が 10 減り、撃破で +10VP。3 分後からは相手の陣地の低い板も撃てる (+100VP)。\n弾が尽きたら 1 キーでピットインを発動して自同盟の補給エリアへ";
-                keys = "移動: 矢印 / 左スティック   旋回: A D / 右スティック   発射: Space / RB   ターボ: Shift / LB   地図: V / Y";
+                keys = "移動: 矢印 / 左スティック   旋回: A D / 右スティック   発射: Space / R1   ターボ: Shift / L2   地図: V / L1";
             }
             else
             {
                 goal = $"相手ロボットの装甲板 (4 枚) にディスクを当てると HP が 10 減る (初期 200)。{matchSeconds} 秒で HP が多い方の勝ち。\n正面より横や後ろの板が当てやすい";
-                keys = "移動: 矢印 / 左スティック   旋回: A D / 右スティック   発射: Space / RB   ターボ: Shift / LB   地図: V / Y";
+                keys = "移動: 矢印 / 左スティック   旋回: A D / 右スティック   発射: Space / R1   ターボ: Shift / L2   地図: V / L1";
             }
 
             RectTransform root = UiKit.Panel(parent, "Briefing", new Color(0f, 0f, 0f, 0.6f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),

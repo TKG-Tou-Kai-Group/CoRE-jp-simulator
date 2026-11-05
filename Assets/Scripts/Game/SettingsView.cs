@@ -10,7 +10,7 @@ namespace CoreSim
         private readonly System.Collections.Generic.List<(Button button, System.Func<string> label)> m_Rows =
             new System.Collections.Generic.List<(Button, System.Func<string>)>();
 
-        public static SettingsView Create(Transform parent, GameSettings settings, System.Action onBack, System.Action onEditProgram = null)
+        public static SettingsView Create(Transform parent, GameSettings settings, System.Action onBack, System.Action onEditProgram = null, System.Action onKeybinds = null)
         {
             RectTransform root = UiKit.Panel(parent, "Settings", new Color(0.05f, 0.07f, 0.1f, 0.7f),
                                              Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
@@ -31,6 +31,7 @@ namespace CoreSim
             view.Row(content, size, () => s.Speed == SpeedPreset.Game ? "機体の速さ: ゲーム (実機の 2 倍、加速 4 倍)" : "機体の速さ: リアル (実機相当 0.5 m/s、ターボ 1.0 m/s)",
                      () => s.Speed = s.Speed == SpeedPreset.Game ? SpeedPreset.Real : SpeedPreset.Game);
             view.Row(content, size, () => s.ShowGuide ? "プレイ中のガイド (今の目標、試合前の説明): ON   (H / Select でも切り替え)" : "プレイ中のガイド: OFF   (H / Select でも切り替え)", () => s.ShowGuide = !s.ShowGuide);
+            view.Row(content, size, () => "操作の割り当てを変える ▶ (キーボード・ゲームパッド)", () => onKeybinds?.Invoke());
             view.Row(content, size, () => s.Sound ? "効果音: ON" : "効果音: OFF", () => s.Sound = !s.Sound);
             view.Row(content, size, () => s.ShowTouchControls ? "タッチ操作パッド: 表示 (タブレット向け)" : "タッチ操作パッド: 非表示", () => s.ShowTouchControls = !s.ShowTouchControls);
 

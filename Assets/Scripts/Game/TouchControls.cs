@@ -20,10 +20,11 @@ namespace CoreSim
 
             Button(root, "Fire", "発射", new Vector2(1f, 0f), new Vector2(-470f, 160f), 170f,
                    new Color(0.9f, 0.3f, 0.25f, 0.75f), "<Gamepad>/rightShoulder");
+            // 仮想パッドは既定の割り当て (発射 = R1、ターボ = L2、地図 = L1) に合わせたボタンとして現れる
             Button(root, "Turbo", "ターボ", new Vector2(1f, 0f), new Vector2(-470f, 360f), 120f,
-                   new Color(0.25f, 0.6f, 0.9f, 0.7f), "<Gamepad>/leftShoulder");
+                   new Color(0.25f, 0.6f, 0.9f, 0.7f), "<Gamepad>/leftTrigger");
             Button(root, "Map", "マップ", new Vector2(0f, 0f), new Vector2(430f, 180f), 110f,
-                   new Color(0.4f, 0.4f, 0.45f, 0.7f), "<Gamepad>/buttonNorth");
+                   new Color(0.4f, 0.4f, 0.45f, 0.7f), "<Gamepad>/leftShoulder");
             // ビルダー用: ハンドの上げ下げ (十字キーの上下として読まれる)。アタッカーでは何も起きない
             Button(root, "LiftUp", "▲ 上げ", new Vector2(1f, 0f), new Vector2(-660f, 400f), 110f,
                    new Color(0.35f, 0.5f, 0.4f, 0.65f), "<Gamepad>/dpad/up");

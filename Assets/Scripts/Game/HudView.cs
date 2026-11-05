@@ -45,7 +45,7 @@ namespace CoreSim
         private GameSettings m_Settings;
         private static int s_GuideToggleFrame = -1;
         private float m_GuideNoticeUntil;
-        private static bool s_SelectHeld;
+        private static bool s_SelectHeld, s_GuideKeyHeld;
         /// <summary>F9 で切り替える CPU のデバッグ表示 (全 HUD 共通)。</summary>
         public static bool ShowBotDebug;
         private static int s_ToggleFrame = -1;
@@ -264,8 +264,10 @@ namespace CoreSim
             }
             BotDebugLines.Refresh(director.Robots, ShowBotDebug);
             // ガイドの ON / OFF (H / パッドの Select)。経験者は消して遊べる
-            bool selectNow = Gamepad.current != null && Gamepad.current.selectButton.isPressed;
-            bool toggle = (Keyboard.current != null && Keyboard.current.hKey.wasPressedThisFrame) || (selectNow && !s_SelectHeld);
+            bool selectNow = Gamepad.current != null && InputBindings.Current.PadHeld(InputAct.Guide, Gamepad.current);
+            bool keyNow = InputBindings.Current.KeyHeld(InputAct.Guide, Keyboard.current);
+            bool toggle = (keyNow && !s_GuideKeyHeld) || (selectNow && !s_SelectHeld);
+            s_GuideKeyHeld = keyNow;
             s_SelectHeld = selectNow;
             if (toggle && m_Settings != null && s_GuideToggleFrame != Time.frameCount)
             {
@@ -346,7 +348,7 @@ namespace CoreSim
                 if (m_BuilderHint != null)
                 {
                     m_BuilderHint.text = alive && m_Self.IsBuilder && m_Self.Lift != null && Tournament == null && match.Phase == MatchPhase.Playing
-                        ? m_Self.Lift.Hint("Space / RB") : "";
+                        ? m_Self.Lift.Hint("Space / R1") : "";
                 }
                 float cd = !m_Self.Remote && m_Self.Shooter != null && m_Self.Shooter.Interval > 0f
                     ? 1f - m_Self.Shooter.Cooldown / m_Self.Shooter.Interval : 1f;

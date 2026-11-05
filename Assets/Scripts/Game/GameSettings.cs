@@ -59,6 +59,7 @@ namespace CoreSim
         public string PlayerName = "Player";
         public bool SeenIntro;              // 「はじめに」を見た (初回だけ自動で出す)
         public bool ShowGuide = true;       // プレイ中のガイド (今の目標、試合前の 1 枚)。H / パッドの Select でいつでも切り替え
+        public string BindingsText = "";    // 操作の割り当て (InputBindings.Serialize)。空なら既定
         public int NetPort = 7777;
         public bool NetUseTcp;              // false = UDP (既定)、true = TCP
         public string LastHostAddress = "";
@@ -128,6 +129,7 @@ namespace CoreSim
             PlayerPrefs.SetInt("sound", Sound ? 1 : 0);
             PlayerPrefs.SetInt("intro", SeenIntro ? 1 : 0);
             PlayerPrefs.SetInt("guide", ShowGuide ? 1 : 0);
+            PlayerPrefs.SetString("bindings", BindingsText ?? "");
             PlayerPrefs.SetString("name", PlayerName);
             PlayerPrefs.SetInt("port", NetPort);
             PlayerPrefs.SetInt("tcp", NetUseTcp ? 1 : 0);
@@ -160,6 +162,8 @@ namespace CoreSim
             s.Sound = PlayerPrefs.GetInt("sound", 1) != 0;
             s.SeenIntro = PlayerPrefs.GetInt("intro", 0) != 0;
             s.ShowGuide = PlayerPrefs.GetInt("guide", 1) != 0;
+            s.BindingsText = PlayerPrefs.GetString("bindings", "");
+            InputBindings.Current = InputBindings.Parse(s.BindingsText);
             s.PlayerName = PlayerPrefs.GetString("name", s.PlayerName);
             s.NetPort = Mathf.Clamp(PlayerPrefs.GetInt("port", s.NetPort), 1024, 65535);
             s.NetUseTcp = PlayerPrefs.GetInt("tcp", 0) != 0;

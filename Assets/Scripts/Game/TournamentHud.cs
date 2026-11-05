@@ -149,7 +149,7 @@ namespace CoreSim
                 }
                 else if (builder)
                 {
-                    m_Center.text = self.Lift != null ? self.Lift.Hint("Space / RB") : "";
+                    m_Center.text = self.Lift != null ? self.Lift.Hint("Space / R1") : "";
                 }
                 else if (auto)
                 {
