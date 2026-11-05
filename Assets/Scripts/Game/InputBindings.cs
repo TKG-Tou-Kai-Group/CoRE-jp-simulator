@@ -33,12 +33,12 @@ namespace CoreSim
     public sealed class InputBindings
     {
         public const int Slots = 2;
+        // 静的フィールドは書いた順に初期化される。Defaults() は All を使うので、Current より先に置く
+        public static readonly InputAct[] All = (InputAct[])Enum.GetValues(typeof(InputAct));
         public static InputBindings Current = Defaults();
 
         private readonly Dictionary<InputAct, Key[]> m_Keys = new Dictionary<InputAct, Key[]>();
         private readonly Dictionary<InputAct, PadButton[]> m_Buttons = new Dictionary<InputAct, PadButton[]>();
-
-        public static readonly InputAct[] All = (InputAct[])Enum.GetValues(typeof(InputAct));
 
         public static InputBindings Defaults()
         {
